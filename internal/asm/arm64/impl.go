@@ -484,66 +484,281 @@ func (a *AssemblerImpl) CompileConditionalRegisterSet(cond asm.ConditionalRegist
 	n.DstReg = dstReg
 }
 
+// encodeNoneToNone:  NOP
 func (a *AssemblerImpl) encodeNoneToNone(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeNoneToRegister:  RET REG_INT
 func (a *AssemblerImpl) encodeNoneToRegister(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeNoneToMemory:  B [REG_INT + IMMEDIATE]
 func (a *AssemblerImpl) encodeNoneToMemory(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeNoneToBranch:  B BRANCH_TARGET
+// encodeNoneToBranch:  BEQ BRANCH_TARGET
+// encodeNoneToBranch:  BGE BRANCH_TARGET
+// encodeNoneToBranch:  BGT BRANCH_TARGET
+// encodeNoneToBranch:  BHI BRANCH_TARGET
+// encodeNoneToBranch:  BHS BRANCH_TARGET
+// encodeNoneToBranch:  BLE BRANCH_TARGET
+// encodeNoneToBranch:  BLO BRANCH_TARGET
+// encodeNoneToBranch:  BLS BRANCH_TARGET
+// encodeNoneToBranch:  BLT BRANCH_TARGET
+// encodeNoneToBranch:  BMI BRANCH_TARGET
+// encodeNoneToBranch:  BNE BRANCH_TARGET
+// encodeNoneToBranch:  BVS BRANCH_TARGET
 func (a *AssemblerImpl) encodeNoneToBranch(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeRegisterToRegister:  ADD REG_INT, REG_INT
+// encodeRegisterToRegister:  ADDW REG_INT, REG_INT
+// encodeRegisterToRegister:  CLZ REG_INT, REG_INT
+// encodeRegisterToRegister:  CLZW REG_INT, REG_INT
+// encodeRegisterToRegister:  CSET COND_EQ, REG_INT
+// encodeRegisterToRegister:  CSET COND_GE, REG_INT
+// encodeRegisterToRegister:  CSET COND_GT, REG_INT
+// encodeRegisterToRegister:  CSET COND_HI, REG_INT
+// encodeRegisterToRegister:  CSET COND_HS, REG_INT
+// encodeRegisterToRegister:  CSET COND_LE, REG_INT
+// encodeRegisterToRegister:  CSET COND_LO, REG_INT
+// encodeRegisterToRegister:  CSET COND_LS, REG_INT
+// encodeRegisterToRegister:  CSET COND_LT, REG_INT
+// encodeRegisterToRegister:  CSET COND_MI, REG_INT
+// encodeRegisterToRegister:  CSET COND_NE, REG_INT
+// encodeRegisterToRegister:  FABSD REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FABSS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FADDD REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FADDS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FCVTDS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FCVTSD REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FCVTZSD REG_FLOAT, REG_INT
+// encodeRegisterToRegister:  FCVTZSDW REG_FLOAT, REG_INT
+// encodeRegisterToRegister:  FCVTZSS REG_FLOAT, REG_INT
+// encodeRegisterToRegister:  FCVTZSSW REG_FLOAT, REG_INT
+// encodeRegisterToRegister:  FCVTZUD REG_FLOAT, REG_INT
+// encodeRegisterToRegister:  FCVTZUDW REG_FLOAT, REG_INT
+// encodeRegisterToRegister:  FCVTZUS REG_FLOAT, REG_INT
+// encodeRegisterToRegister:  FCVTZUSW REG_FLOAT, REG_INT
+// encodeRegisterToRegister:  FDIVD REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FDIVS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FMAXD REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FMAXS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FMIND REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FMINS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FMOVD REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FMOVD REG_FLOAT, REG_INT
+// encodeRegisterToRegister:  FMOVD REG_INT, REG_FLOAT
+// encodeRegisterToRegister:  FMOVD ZERO, REG_FLOAT
+// encodeRegisterToRegister:  FMOVS REG_FLOAT, REG_INT
+// encodeRegisterToRegister:  FMOVS REG_INT, REG_FLOAT
+// encodeRegisterToRegister:  FMOVS ZERO, REG_FLOAT
+// encodeRegisterToRegister:  FMULD REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FMULS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FNEGD REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FNEGS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FRINTMD REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FRINTMS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FRINTND REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FRINTNS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FRINTPD REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FRINTPS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FRINTZD REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FRINTZS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FSQRTD REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  FSQRTS REG_FLOAT, REG_FLOAT
+// encodeRegisterToRegister:  MOVD REG_INT, REG_INT
+// encodeRegisterToRegister:  MOVD ZERO, REG_INT
+// encodeRegisterToRegister:  MOVW REG_INT, REG_INT
+// encodeRegisterToRegister:  MRS FPSR, REG_INT
+// encodeRegisterToRegister:  MSR ZERO, FPSR
+// encodeRegisterToRegister:  MUL REG_INT, REG_INT
+// encodeRegisterToRegister:  MULW REG_INT, REG_INT
+// encodeRegisterToRegister:  NEG REG_INT, REG_INT
+// encodeRegisterToRegister:  NEGW REG_INT, REG_INT
+// encodeRegisterToRegister:  RBIT REG_INT, REG_INT
+// encodeRegisterToRegister:  RBITW REG_INT, REG_INT
+// encodeRegisterToRegister:  SCVTFD REG_INT, REG_FLOAT
+// encodeRegisterToRegister:  SCVTFD ZERO, REG_FLOAT
+// encodeRegisterToRegister:  SCVTFS REG_INT, REG_FLOAT
+// encodeRegisterToRegister:  SCVTFS ZERO, REG_FLOAT
+// encodeRegisterToRegister:  SCVTFWD REG_INT, REG_FLOAT
+// encodeRegisterToRegister:  SCVTFWD ZERO, REG_FLOAT
+// encodeRegisterToRegister:  SCVTFWS REG_INT, REG_FLOAT
+// encodeRegisterToRegister:  SCVTFWS ZERO, REG_FLOAT
+// encodeRegisterToRegister:  SDIV REG_INT, REG_INT
+// encodeRegisterToRegister:  SDIV REG_INT, ZERO
+// encodeRegisterToRegister:  SDIVW REG_INT, REG_INT
+// encodeRegisterToRegister:  SDIVW REG_INT, ZERO
+// encodeRegisterToRegister:  SUB REG_INT, REG_INT
+// encodeRegisterToRegister:  SXTB REG_INT, REG_INT
+// encodeRegisterToRegister:  SXTB ZERO, ZERO
+// encodeRegisterToRegister:  SXTBW REG_INT, REG_INT
+// encodeRegisterToRegister:  SXTBW ZERO, ZERO
+// encodeRegisterToRegister:  SXTH REG_INT, REG_INT
+// encodeRegisterToRegister:  SXTH ZERO, ZERO
+// encodeRegisterToRegister:  SXTHW REG_INT, REG_INT
+// encodeRegisterToRegister:  SXTHW ZERO, ZERO
+// encodeRegisterToRegister:  SXTW REG_INT, REG_INT
+// encodeRegisterToRegister:  SXTW ZERO, ZERO
+// encodeRegisterToRegister:  UCVTFD REG_INT, REG_FLOAT
+// encodeRegisterToRegister:  UCVTFD ZERO, REG_FLOAT
+// encodeRegisterToRegister:  UCVTFS REG_INT, REG_FLOAT
+// encodeRegisterToRegister:  UCVTFS ZERO, REG_FLOAT
+// encodeRegisterToRegister:  UCVTFWD REG_INT, REG_FLOAT
+// encodeRegisterToRegister:  UCVTFWD ZERO, REG_FLOAT
+// encodeRegisterToRegister:  UCVTFWS REG_INT, REG_FLOAT
+// encodeRegisterToRegister:  UCVTFWS ZERO, REG_FLOAT
+// encodeRegisterToRegister:  UDIV REG_INT, REG_INT
+// encodeRegisterToRegister:  UDIV REG_INT, ZERO
+// encodeRegisterToRegister:  UDIVW REG_INT, REG_INT
+// encodeRegisterToRegister:  UXTW REG_INT, REG_INT
+// encodeRegisterToRegister:  UXTW ZERO, ZERO
 func (a *AssemblerImpl) encodeRegisterToRegister(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeLeftShiftedRegisterToRegister:  ADD (REG_INT, REG_INT << 2), REG_INT
+// encodeLeftShiftedRegisterToRegister:  ADD (REG_INT, REG_INT << 3), REG_INT
+// encodeLeftShiftedRegisterToRegister:  ADD (REG_INT, REG_INT << 4), REG_INT
+// encodeLeftShiftedRegisterToRegister:  ADD (REG_INT, REG_INT << 5), REG_INT
 func (a *AssemblerImpl) encodeLeftShiftedRegisterToRegister(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeTwoRegistersToRegister:  AND (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  ANDW (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  ASR (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  ASRW (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  EOR (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  EOR (REG_INT, ZERO), REG_INT
+// encodeTwoRegistersToRegister:  EOR (ZERO, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  EOR (ZERO, ZERO), ZERO
+// encodeTwoRegistersToRegister:  EORW (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  EORW (REG_INT, ZERO), REG_INT
+// encodeTwoRegistersToRegister:  EORW (ZERO, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  EORW (ZERO, ZERO), ZERO
+// encodeTwoRegistersToRegister:  FSUBD (REG_FLOAT, REG_FLOAT), REG_FLOAT
+// encodeTwoRegistersToRegister:  FSUBS (REG_FLOAT, REG_FLOAT), REG_FLOAT
+// encodeTwoRegistersToRegister:  LSL (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  LSLW (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  LSR (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  LSRW (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  ORR (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  ORRW (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  ROR (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  RORW (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  SDIV (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  SDIV (REG_INT, ZERO), REG_INT
+// encodeTwoRegistersToRegister:  SDIVW (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  SDIVW (REG_INT, ZERO), REG_INT
+// encodeTwoRegistersToRegister:  SUB (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  SUB (REG_INT, ZERO), REG_INT
+// encodeTwoRegistersToRegister:  SUB (ZERO, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  SUBW (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  SUBW (REG_INT, ZERO), REG_INT
+// encodeTwoRegistersToRegister:  SUBW (ZERO, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  UDIV (REG_INT, REG_INT), REG_INT
+// encodeTwoRegistersToRegister:  UDIV (REG_INT, ZERO), REG_INT
+// encodeTwoRegistersToRegister:  UDIVW (REG_INT, REG_INT), REG_INT
 func (a *AssemblerImpl) encodeTwoRegistersToRegister(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeTwoRegisters:  MSUB (REG_INT, REG_INT), (REG_INT, REG_INT)
+// encodeTwoRegisters:  MSUB (REG_INT, ZERO), (REG_INT, REG_INT)
+// encodeTwoRegisters:  MSUBW (REG_INT, REG_INT), (REG_INT, REG_INT)
+// encodeTwoRegisters:  MSUBW (REG_INT, ZERO), (REG_INT, REG_INT)
 func (a *AssemblerImpl) encodeTwoRegisters(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeTwoRegistersToNone:  CMP (REG_INT, REG_INT)
+// encodeTwoRegistersToNone:  CMP (REG_INT, ZERO)
+// encodeTwoRegistersToNone:  CMP (ZERO, REG_INT)
+// encodeTwoRegistersToNone:  CMP (ZERO, ZERO)
+// encodeTwoRegistersToNone:  CMPW (REG_INT, REG_INT)
+// encodeTwoRegistersToNone:  CMPW (REG_INT, ZERO)
+// encodeTwoRegistersToNone:  CMPW (ZERO, REG_INT)
+// encodeTwoRegistersToNone:  CMPW (ZERO, ZERO)
+// encodeTwoRegistersToNone:  FCMPD (REG_FLOAT, REG_FLOAT)
+// encodeTwoRegistersToNone:  FCMPS (REG_FLOAT, REG_FLOAT)
 func (a *AssemblerImpl) encodeTwoRegistersToNone(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeRegisterAndConstToNone:  CMP (REG_INT, IMMEDIATE)
 func (a *AssemblerImpl) encodeRegisterAndConstToNone(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeRegisterToMemory:  FMOVD REG_FLOAT, [REG_INT + IMMEDIATE]
+// encodeRegisterToMemory:  FMOVD REG_FLOAT, [REG_INT + REG_INT]
+// encodeRegisterToMemory:  FMOVS REG_FLOAT, [REG_INT + IMMEDIATE]
+// encodeRegisterToMemory:  FMOVS REG_FLOAT, [REG_INT + REG_INT]
+// encodeRegisterToMemory:  MOVB REG_INT, [REG_INT + REG_INT]
+// encodeRegisterToMemory:  MOVB ZERO, [REG_INT + REG_INT]
+// encodeRegisterToMemory:  MOVD REG_INT, [REG_INT + IMMEDIATE]
+// encodeRegisterToMemory:  MOVD REG_INT, [REG_INT + REG_INT]
+// encodeRegisterToMemory:  MOVD ZERO, [REG_INT + IMMEDIATE]
+// encodeRegisterToMemory:  MOVD ZERO, [REG_INT + REG_INT]
+// encodeRegisterToMemory:  MOVH REG_INT, [REG_INT + REG_INT]
+// encodeRegisterToMemory:  MOVH ZERO, [REG_INT + REG_INT]
+// encodeRegisterToMemory:  MOVW REG_INT, [REG_INT + IMMEDIATE]
+// encodeRegisterToMemory:  MOVW REG_INT, [REG_INT + REG_INT]
+// encodeRegisterToMemory:  MOVW ZERO, [REG_INT + IMMEDIATE]
+// encodeRegisterToMemory:  MOVW ZERO, [REG_INT + REG_INT]
+// encodeRegisterToMemory:  MOVWU REG_INT, [REG_INT + IMMEDIATE]
 func (a *AssemblerImpl) encodeRegisterToMemory(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeMemoryToRegister:  ADR [nil + IMMEDIATE], REG_INT
+// encodeMemoryToRegister:  FMOVD [REG_INT + IMMEDIATE], REG_FLOAT
+// encodeMemoryToRegister:  FMOVD [REG_INT + REG_INT], REG_FLOAT
+// encodeMemoryToRegister:  FMOVS [REG_INT + IMMEDIATE], REG_FLOAT
+// encodeMemoryToRegister:  FMOVS [REG_INT + REG_INT], REG_FLOAT
+// encodeMemoryToRegister:  MOVB [REG_INT + REG_INT], REG_INT
+// encodeMemoryToRegister:  MOVBU [REG_INT + REG_INT], REG_INT
+// encodeMemoryToRegister:  MOVD [REG_INT + IMMEDIATE], REG_INT
+// encodeMemoryToRegister:  MOVD [REG_INT + REG_INT], REG_INT
+// encodeMemoryToRegister:  MOVH [REG_INT + REG_INT], REG_INT
+// encodeMemoryToRegister:  MOVHU [REG_INT + REG_INT], REG_INT
+// encodeMemoryToRegister:  MOVW [REG_INT + IMMEDIATE], REG_INT
+// encodeMemoryToRegister:  MOVW [REG_INT + REG_INT], REG_INT
+// encodeMemoryToRegister:  MOVWU [REG_INT + IMMEDIATE], REG_INT
+// encodeMemoryToRegister:  MOVWU [REG_INT + REG_INT], REG_INT
 func (a *AssemblerImpl) encodeMemoryToRegister(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeConstToRegister:  ADD IMMEDIATE, REG_INT
+// encodeConstToRegister:  LSR IMMEDIATE, REG_INT
+// encodeConstToRegister:  MOVD IMMEDIATE, REG_INT
+// encodeConstToRegister:  MOVW IMMEDIATE, REG_INT
+// encodeConstToRegister:  SUB IMMEDIATE, REG_INT
+// encodeConstToRegister:  SUBS IMMEDIATE, REG_INT
 func (a *AssemblerImpl) encodeConstToRegister(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeSIMDByteToSIMDByte:  VCNT REG_FLOAT.B8, REG_FLOAT.B8
 func (a *AssemblerImpl) encodeSIMDByteToSIMDByte(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeSIMDByteToRegister:  VUADDLV REG_FLOAT.B8, REG_FLOAT
+// encodeSIMDByteToSIMDByte:  VCNT REG_FLOAT.B8, REG_FLOAT.B8
 func (a *AssemblerImpl) encodeSIMDByteToRegister(n *NodeImpl) (err error) {
 	return
 }
 
+// encodeTwoSIMDBytesToSIMDByteRegister: VBIT (REG_FLOAT.B8, REG_FLOAT.B8), REG_FLOAT.B8
 func (a *AssemblerImpl) encodeTwoSIMDBytesToSIMDByteRegister(n *NodeImpl) (err error) {
 	return
 }

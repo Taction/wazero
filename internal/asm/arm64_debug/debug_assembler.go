@@ -179,6 +179,7 @@ func (ta *testAssembler) CompileTwoRegistersToRegister(instruction asm.Instructi
 
 func (ta *testAssembler) CompileTwoRegisters(instruction asm.Instruction, src1, src2, dst1, dst2 asm.Register) {
 	ta.goasm.CompileTwoRegisters(instruction, src1, src2, dst1, dst2)
+	ta.a.CompileTwoRegisters(instruction, src1, src2, dst1, dst2)
 }
 
 func (ta *testAssembler) CompileTwoRegistersToNone(instruction asm.Instruction, src1, src2 asm.Register) {

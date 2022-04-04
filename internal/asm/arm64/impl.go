@@ -558,16 +558,11 @@ func checkRegisterToRegisterType(src, dst asm.Register, requireSrcInt, requireDs
 }
 
 func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
-	srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
 
 	switch inst := n.Instruction; inst {
 	case ADD, ADDW, SUB:
 		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, true, true); err != nil {
 			return
-		}
-
-		if n.SrcConst < 0 || n.SrcConst > 64 {
-			return fmt.Errorf("shift amount must fit in unsigned 6-bit integer (0-64) but got %d", n.SrcConst)
 		}
 
 		// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Data-Processing----Register?lang=en#addsub_shift
@@ -580,26 +575,84 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 			sfops = 0b110
 		}
 
+		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
 		a.Buf.Write([]byte{
 			(dstRegBits << 5) | dstRegBits,
 			(dstRegBits >> 3),
 			srcRegBits,
 			(sfops << 5) | 0b01011,
 		})
+	case CLZ, CLZW:
+		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, true, true); err != nil {
+			return
+		}
 
-		// CLZ REG_INT, REG_INT
-		// CLZW REG_INT, REG_INT
-		// CSET COND_EQ, REG_INT
-		// CSET COND_GE, REG_INT
-		// CSET COND_GT, REG_INT
-		// CSET COND_HI, REG_INT
-		// CSET COND_HS, REG_INT
-		// CSET COND_LE, REG_INT
-		// CSET COND_LO, REG_INT
-		// CSET COND_LS, REG_INT
-		// CSET COND_LT, REG_INT
-		// CSET COND_MI, REG_INT
-		// CSET COND_NE, REG_INT
+		var sf byte
+		if inst == CLZ {
+			sf = 1
+		}
+
+		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
+		a.Buf.Write([]byte{
+			(srcRegBits << 5) | dstRegBits,
+			0b000100_00 | (srcRegBits >> 3),
+			0b110_00000,
+			(sf << 7) | 0b0_1011010,
+		})
+	case CSET:
+		if !isConditionalRegister(n.SrcReg) {
+			return fmt.Errorf("CSET requires conditional register but got %s", RegisterName(n.SrcReg))
+		}
+
+		dstRegBits, err := intRegisterBits(n.DstReg)
+		if err != nil {
+			return err
+		}
+
+		var conditionalBits byte
+		switch n.SrcReg {
+		case REG_COND_EQ:
+			conditionalBits = 0b0001
+		case REG_COND_NE:
+			conditionalBits = 0b0000
+		case REG_COND_HS:
+			conditionalBits = 0b0011
+		case REG_COND_LO:
+			conditionalBits = 0b0010
+		case REG_COND_MI:
+			conditionalBits = 0b0101
+		case REG_COND_PL:
+			conditionalBits = 0b0100
+		case REG_COND_VS:
+			conditionalBits = 0b0111
+		case REG_COND_VC:
+			conditionalBits = 0b0110
+		case REG_COND_HI:
+			conditionalBits = 0b1001
+		case REG_COND_LS:
+			conditionalBits = 0b1000
+		case REG_COND_GE:
+			conditionalBits = 0b1011
+		case REG_COND_LT:
+			conditionalBits = 0b1010
+		case REG_COND_GT:
+			conditionalBits = 0b1101
+		case REG_COND_LE:
+			conditionalBits = 0b1100
+		case REG_COND_AL:
+			conditionalBits = 0b1111
+		case REG_COND_NV:
+			conditionalBits = 0b1110
+		}
+
+		// https://developer.arm.com/documentation/ddi0596/2021-12/Base-Instructions/CSET--Conditional-Set--an-alias-of-CSINC-?lang=en
+		a.Buf.Write([]byte{
+			0b111_00000 | dstRegBits,
+			(conditionalBits << 4) | 0b0000_0111,
+			0b100_11111,
+			0b10011010,
+		})
+
 		// FABSD REG_FLOAT, REG_FLOAT
 		// FABSS REG_FLOAT, REG_FLOAT
 		// FADDD REG_FLOAT, REG_FLOAT
@@ -942,6 +995,10 @@ func isIntRegister(r asm.Register) bool {
 
 func isFloatRegister(r asm.Register) bool {
 	return REG_F0 <= r && r <= REG_F31
+}
+
+func isConditionalRegister(r asm.Register) bool {
+	return REG_COND_EQ <= r && r <= REG_COND_NV
 }
 
 func intRegisterBits(r asm.Register) (ret byte, err error) {

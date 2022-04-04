@@ -329,6 +329,24 @@ func TestAssemblerImpl_EncodeRegisterToRegister(t *testing.T) {
 	})
 
 	intRegs := []asm.Register{asm_arm64.REGZERO, asm_arm64.REG_R1, asm_arm64.REG_R10, asm_arm64.REG_R30}
+	conditionalRegs := []asm.Register{
+		asm_arm64.REG_COND_EQ,
+		asm_arm64.REG_COND_NE,
+		asm_arm64.REG_COND_HS,
+		asm_arm64.REG_COND_LO,
+		asm_arm64.REG_COND_MI,
+		asm_arm64.REG_COND_PL,
+		asm_arm64.REG_COND_VS,
+		asm_arm64.REG_COND_VC,
+		asm_arm64.REG_COND_HI,
+		asm_arm64.REG_COND_LS,
+		asm_arm64.REG_COND_GE,
+		asm_arm64.REG_COND_LT,
+		asm_arm64.REG_COND_GT,
+		asm_arm64.REG_COND_LE,
+		asm_arm64.REG_COND_AL,
+		asm_arm64.REG_COND_NV,
+	}
 	// floatRegs := []asm.Register{}
 
 	for _, tc := range []struct {
@@ -338,6 +356,9 @@ func TestAssemblerImpl_EncodeRegisterToRegister(t *testing.T) {
 		{inst: asm_arm64.ADD, srcRegs: intRegs, dstRegs: intRegs},
 		{inst: asm_arm64.ADDW, srcRegs: intRegs, dstRegs: intRegs},
 		{inst: asm_arm64.SUB, srcRegs: intRegs, dstRegs: intRegs},
+		{inst: asm_arm64.CLZ, srcRegs: intRegs, dstRegs: intRegs},
+		{inst: asm_arm64.CLZW, srcRegs: intRegs, dstRegs: intRegs},
+		{inst: asm_arm64.CSET, srcRegs: conditionalRegs, dstRegs: intRegs},
 	} {
 		tc := tc
 		t.Run(asm_arm64.InstructionName(tc.inst), func(t *testing.T) {
@@ -346,7 +367,13 @@ func TestAssemblerImpl_EncodeRegisterToRegister(t *testing.T) {
 					src, dst := src, dst
 					t.Run(fmt.Sprintf("src=%s,dst=%s", asm_arm64.RegisterName(src), asm_arm64.RegisterName(dst)), func(t *testing.T) {
 						goasm := newGoasmAssembler(t, asm.NilRegister)
-						goasm.CompileRegisterToRegister(tc.inst, src, dst)
+						if tc.inst == asm_arm64.CSET {
+
+							goasm.CompileConditionalRegisterSet(conditionalRegisterToState(src), dst)
+						} else {
+							goasm.CompileRegisterToRegister(tc.inst, src, dst)
+
+						}
 						expected, err := goasm.Assemble()
 						require.NoError(t, err)
 
@@ -362,4 +389,42 @@ func TestAssemblerImpl_EncodeRegisterToRegister(t *testing.T) {
 			}
 		})
 	}
+}
+
+func conditionalRegisterToState(r asm.Register) asm.ConditionalRegisterState {
+	switch r {
+	case asm_arm64.REG_COND_EQ:
+		return asm_arm64.COND_EQ
+	case asm_arm64.REG_COND_NE:
+		return asm_arm64.COND_NE
+	case asm_arm64.REG_COND_HS:
+		return asm_arm64.COND_HS
+	case asm_arm64.REG_COND_LO:
+		return asm_arm64.COND_LO
+	case asm_arm64.REG_COND_MI:
+		return asm_arm64.COND_MI
+	case asm_arm64.REG_COND_PL:
+		return asm_arm64.COND_PL
+	case asm_arm64.REG_COND_VS:
+		return asm_arm64.COND_VS
+	case asm_arm64.REG_COND_VC:
+		return asm_arm64.COND_VC
+	case asm_arm64.REG_COND_HI:
+		return asm_arm64.COND_HI
+	case asm_arm64.REG_COND_LS:
+		return asm_arm64.COND_LS
+	case asm_arm64.REG_COND_GE:
+		return asm_arm64.COND_GE
+	case asm_arm64.REG_COND_LT:
+		return asm_arm64.COND_LT
+	case asm_arm64.REG_COND_GT:
+		return asm_arm64.COND_GT
+	case asm_arm64.REG_COND_LE:
+		return asm_arm64.COND_LE
+	case asm_arm64.REG_COND_AL:
+		return asm_arm64.COND_AL
+	case asm_arm64.REG_COND_NV:
+		return asm_arm64.COND_NV
+	}
+	return asm.ConditionalRegisterStateUnset
 }

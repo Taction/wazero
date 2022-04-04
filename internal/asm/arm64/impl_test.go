@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tetratelabs/wazero/internal/asm"
 )
 
 func TestNodeImpl_AssignJumpTarget(t *testing.T) {
@@ -358,4 +359,39 @@ func Test_CompileConditionalRegisterSet(t *testing.T) {
 	require.Equal(t, REG_R10, actualNode.DstReg)
 	require.Equal(t, OperandTypeRegister, actualNode.Types.src)
 	require.Equal(t, OperandTypeRegister, actualNode.Types.dst)
+}
+
+func Test_checkRegisterToRegisterType(t *testing.T) {
+	for _, tc := range []struct {
+		src, dst                     asm.Register
+		requireSrcInt, requireDstInt bool
+		expErr                       string
+	}{
+		{src: REG_R10, dst: REG_R30, requireSrcInt: true, requireDstInt: true, expErr: ""},
+		{src: REG_R10, dst: REG_R30, requireSrcInt: false, requireDstInt: true, expErr: "src requires float register but got R10"},
+		{src: REG_R10, dst: REG_R30, requireSrcInt: false, requireDstInt: false, expErr: "src requires float register but got R10"},
+		{src: REG_R10, dst: REG_R30, requireSrcInt: true, requireDstInt: false, expErr: "dst requires float register but got R30"},
+
+		{src: REG_R10, dst: REG_F30, requireSrcInt: true, requireDstInt: false, expErr: ""},
+		{src: REG_R10, dst: REG_F30, requireSrcInt: false, requireDstInt: true, expErr: "src requires float register but got R10"},
+		{src: REG_R10, dst: REG_F30, requireSrcInt: false, requireDstInt: false, expErr: "src requires float register but got R10"},
+		{src: REG_R10, dst: REG_F30, requireSrcInt: true, requireDstInt: true, expErr: "dst requires int register but got F30"},
+
+		{src: REG_F10, dst: REG_R30, requireSrcInt: false, requireDstInt: true, expErr: ""},
+		{src: REG_F10, dst: REG_R30, requireSrcInt: true, requireDstInt: true, expErr: "src requires int register but got F10"},
+		{src: REG_F10, dst: REG_R30, requireSrcInt: true, requireDstInt: false, expErr: "src requires int register but got F10"},
+		{src: REG_F10, dst: REG_R30, requireSrcInt: false, requireDstInt: false, expErr: "dst requires float register but got R30"},
+
+		{src: REG_F10, dst: REG_F30, requireSrcInt: false, requireDstInt: false, expErr: ""},
+		{src: REG_F10, dst: REG_F30, requireSrcInt: true, requireDstInt: false, expErr: "src requires int register but got F10"},
+		{src: REG_F10, dst: REG_F30, requireSrcInt: true, requireDstInt: true, expErr: "src requires int register but got F10"},
+		{src: REG_F10, dst: REG_F30, requireSrcInt: false, requireDstInt: true, expErr: "dst requires int register but got F30"},
+	} {
+		actual := checkRegisterToRegisterType(tc.src, tc.dst, tc.requireSrcInt, tc.requireDstInt)
+		if tc.expErr != "" {
+			require.EqualError(t, actual, tc.expErr)
+		} else {
+			require.NoError(t, actual)
+		}
+	}
 }

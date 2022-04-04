@@ -646,6 +646,21 @@ func (a *AssemblerImpl) EncodeNoneToBranch(n *NodeImpl) (err error) {
 // encodeRegisterToRegister:  UDIVW REG_INT, REG_INT
 // encodeRegisterToRegister:  UXTW REG_INT, REG_INT
 // encodeRegisterToRegister:  UXTW ZERO, ZERO
+
+func checkRegisterToRegisterType(src, dst asm.Register, requireSrcInt, requireDstInt bool) (err error) {
+	isSrcInt, isDstInt := isIntRegister(src), isIntRegister(dst)
+	if isSrcInt && !requireSrcInt {
+		err = fmt.Errorf("src requires float register but got %s", RegisterName(src))
+	} else if !isSrcInt && requireSrcInt {
+		err = fmt.Errorf("src requires int register but got %s", RegisterName(src))
+	} else if isDstInt && !requireDstInt {
+		err = fmt.Errorf("dst requires float register but got %s", RegisterName(dst))
+	} else if !isDstInt && requireDstInt {
+		err = fmt.Errorf("dst requires int register but got %s", RegisterName(dst))
+	}
+	return
+}
+
 func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 	return
 }

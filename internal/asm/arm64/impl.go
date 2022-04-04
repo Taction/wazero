@@ -653,12 +653,59 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 			0b10011010,
 		})
 
-		// FABSD REG_FLOAT, REG_FLOAT
-		// FABSS REG_FLOAT, REG_FLOAT
+	case FABSD, FABSS, FNEGD, FNEGS, FSQRTD, FSQRTS, FCVTSD, FCVTDS, FRINTMD, FRINTMS,
+		FRINTND, FRINTNS, FRINTPD, FRINTPS, FRINTZD, FRINTZS:
+		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, false, false); err != nil {
+			return
+		}
+
+		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
+
+		// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Data-Processing----Scalar-Floating-Point-and-Advanced-SIMD?lang=en#floatdp1
+		var S, Type, Opcode byte
+		switch inst {
+		case FABSD:
+			Opcode, Type = 0b000001, 0b01
+		case FABSS:
+			Opcode, Type = 0b000001, 0b00
+		case FNEGD:
+			Opcode, Type = 0b000010, 0b01
+		case FNEGS:
+			Opcode, Type = 0b000010, 0b00
+		case FSQRTD:
+			Opcode, Type = 0b000011, 0b01
+		case FSQRTS:
+			Opcode, Type = 0b000011, 0b00
+		case FCVTSD:
+			Opcode, Type = 0b000101, 0b00
+		case FCVTDS:
+			Opcode, Type = 0b000100, 0b01
+		case FRINTMD:
+			Opcode, Type = 0b001010, 0b01
+		case FRINTMS:
+			Opcode, Type = 0b001010, 0b00
+		case FRINTND:
+			Opcode, Type = 0b001000, 0b01
+		case FRINTNS:
+			Opcode, Type = 0b001000, 0b00
+		case FRINTPD:
+			Opcode, Type = 0b001001, 0b01
+		case FRINTPS:
+			Opcode, Type = 0b001001, 0b00
+		case FRINTZD:
+			Opcode, Type = 0b001011, 0b01
+		case FRINTZS:
+			Opcode, Type = 0b001011, 0b00
+		}
+		a.Buf.Write([]byte{
+			(srcRegBits << 5) | dstRegBits,
+			(Opcode << 7) | 0b0_10000_00 | (srcRegBits >> 3),
+			Type<<6 | 0b00_1_00000 | Opcode>>1,
+			(S << 5) | 0b0_00_11110,
+		})
+
 		// FADDD REG_FLOAT, REG_FLOAT
 		// FADDS REG_FLOAT, REG_FLOAT
-		// FCVTDS REG_FLOAT, REG_FLOAT
-		// FCVTSD REG_FLOAT, REG_FLOAT
 		// FCVTZSD REG_FLOAT, REG_INT
 		// FCVTZSDW REG_FLOAT, REG_INT
 		// FCVTZSS REG_FLOAT, REG_INT
@@ -682,18 +729,6 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 		// FMOVS ZERO, REG_FLOAT
 		// FMULD REG_FLOAT, REG_FLOAT
 		// FMULS REG_FLOAT, REG_FLOAT
-		// FNEGD REG_FLOAT, REG_FLOAT
-		// FNEGS REG_FLOAT, REG_FLOAT
-		// FRINTMD REG_FLOAT, REG_FLOAT
-		// FRINTMS REG_FLOAT, REG_FLOAT
-		// FRINTND REG_FLOAT, REG_FLOAT
-		// FRINTNS REG_FLOAT, REG_FLOAT
-		// FRINTPD REG_FLOAT, REG_FLOAT
-		// FRINTPS REG_FLOAT, REG_FLOAT
-		// FRINTZD REG_FLOAT, REG_FLOAT
-		// FRINTZS REG_FLOAT, REG_FLOAT
-		// FSQRTD REG_FLOAT, REG_FLOAT
-		// FSQRTS REG_FLOAT, REG_FLOAT
 		// MOVD REG_INT, REG_INT
 		// MOVD ZERO, REG_INT
 		// MOVW REG_INT, REG_INT

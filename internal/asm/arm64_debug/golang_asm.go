@@ -135,16 +135,16 @@ func (a *assemblerGoAsmImpl) CompileTwoRegistersToRegister(instruction asm.Instr
 	a.AddInstruction(inst)
 }
 
-// CompileTwoRegisters implements Assembler.CompileTwoRegisters.
-func (a *assemblerGoAsmImpl) CompileTwoRegisters(instruction asm.Instruction, src1, src2, dst1, dst2 asm.Register) {
+// CompileTwoRegisters implements Assembler.CompileThreeRegistersToRegister.
+func (a *assemblerGoAsmImpl) CompileThreeRegistersToRegister(instruction asm.Instruction, src1, src2, src3, dst asm.Register) {
 	inst := a.NewProg()
 	inst.As = castAsGolangAsmInstruction[instruction]
 	inst.To.Type = obj.TYPE_REG
-	inst.To.Reg = castAsGolangAsmRegister[dst1]
+	inst.To.Reg = castAsGolangAsmRegister[dst]
 	inst.From.Type = obj.TYPE_REG
 	inst.From.Reg = castAsGolangAsmRegister[src1]
 	inst.Reg = castAsGolangAsmRegister[src2]
-	inst.RestArgs = append(inst.RestArgs, obj.Addr{Type: obj.TYPE_REG, Reg: castAsGolangAsmRegister[dst2]})
+	inst.RestArgs = append(inst.RestArgs, obj.Addr{Type: obj.TYPE_REG, Reg: castAsGolangAsmRegister[src3]})
 	a.AddInstruction(inst)
 }
 

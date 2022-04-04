@@ -24,8 +24,6 @@ type NodeImpl struct {
 	SrcReg, SrcReg2, DstReg, DstReg2 asm.Register
 	SrcConst, DstConst               asm.ConstantValue
 
-	Mode byte
-
 	// readInstructionAddressBeforeTargetInstruction holds the instruction right before the target of
 	// read instruction address instruction. See asm.assemblerBase.CompileReadInstructionAddress.
 	readInstructionAddressBeforeTargetInstruction asm.Instruction
@@ -102,8 +100,8 @@ func (n *NodeImpl) String() (ret string) {
 		ret = fmt.Sprintf("%s (%s, %s << %d), %s", instName, RegisterName(n.SrcReg), RegisterName(n.SrcReg2), n.SrcConst, RegisterName(n.DstReg))
 	case OperandTypesTwoRegistersToRegister:
 		ret = fmt.Sprintf("%s (%s, %s), %s", instName, RegisterName(n.SrcReg), RegisterName(n.SrcReg2), RegisterName(n.DstReg))
-	case OperandTypesTwoRegisters:
-		ret = fmt.Sprintf("%s (%s, %s), (%s, %s)", instName, RegisterName(n.SrcReg), RegisterName(n.SrcReg2), RegisterName(n.DstReg), RegisterName(n.DstReg2))
+	case OperandTypesThreeRegistersToRegister:
+		ret = fmt.Sprintf("%s (%s, %s, %s), %s)", instName, RegisterName(n.SrcReg), RegisterName(n.SrcReg2), RegisterName(n.DstReg), RegisterName(n.DstReg2))
 	case OperandTypesTwoRegistersToNone:
 		ret = fmt.Sprintf("%s (%s, %s)", instName, RegisterName(n.SrcReg), RegisterName(n.SrcReg2))
 	case OperandTypesRegisterAndConstToNone:
@@ -141,6 +139,7 @@ const (
 	OperandTypeRegister
 	OperandTypeLeftShiftedRegister
 	OperandTypeTwoRegisters
+	OperandTypeThreeRegisters
 	OperandTypeRegisterAndConst
 	OperandTypeMemory
 	OperandTypeConst
@@ -186,7 +185,7 @@ var (
 	OperandTypesRegisterToRegister             = OperandTypes{OperandTypeRegister, OperandTypeRegister}
 	OperandTypesLeftShiftedRegisterToRegister  = OperandTypes{OperandTypeLeftShiftedRegister, OperandTypeRegister}
 	OperandTypesTwoRegistersToRegister         = OperandTypes{OperandTypeTwoRegisters, OperandTypeRegister}
-	OperandTypesTwoRegisters                   = OperandTypes{OperandTypeTwoRegisters, OperandTypeTwoRegisters}
+	OperandTypesThreeRegistersToRegister       = OperandTypes{OperandTypeThreeRegisters, OperandTypeRegister}
 	OperandTypesTwoRegistersToNone             = OperandTypes{OperandTypeTwoRegisters, OperandTypeNone}
 	OperandTypesRegisterAndConstToNone         = OperandTypes{OperandTypeRegisterAndConst, OperandTypeNone}
 	OperandTypesRegisterToMemory               = OperandTypes{OperandTypeRegister, OperandTypeMemory}
@@ -297,8 +296,8 @@ func (a *AssemblerImpl) EncodeNode(n *NodeImpl) (err error) {
 		err = a.EncodeLeftShiftedRegisterToRegister(n)
 	case OperandTypesTwoRegistersToRegister:
 		err = a.EncodeTwoRegistersToRegister(n)
-	case OperandTypesTwoRegisters:
-		err = a.EncodeTwoRegisters(n)
+	case OperandTypesThreeRegistersToRegister:
+		err = a.EncodeThreeRegistersToRegister(n)
 	case OperandTypesTwoRegistersToNone:
 		err = a.EncodeTwoRegistersToNone(n)
 	case OperandTypesRegisterAndConstToNone:
@@ -429,13 +428,13 @@ func (a *AssemblerImpl) CompileTwoRegistersToRegister(instruction asm.Instructio
 	n.DstReg = dst
 }
 
-// CompileTwoRegisters implements Assembler.CompileTwoRegisters
-func (a *AssemblerImpl) CompileTwoRegisters(instruction asm.Instruction, src1, src2, dst1, dst2 asm.Register) {
-	n := a.newNode(instruction, OperandTypesTwoRegisters)
+// CompileTwoRegisters implements Assembler.CompileThreeRegistersToRegister
+func (a *AssemblerImpl) CompileThreeRegistersToRegister(instruction asm.Instruction, src1, src2, src3, dst asm.Register) {
+	n := a.newNode(instruction, OperandTypesThreeRegistersToRegister)
 	n.SrcReg = src1
 	n.SrcReg2 = src2
-	n.DstReg = dst1
-	n.DstReg2 = dst2
+	n.DstReg = src3 // To minimize the size of NodeImpl struct, we reuse DstReg for the third source operand.
+	n.DstReg2 = dst
 }
 
 // CompileTwoRegistersToNone implements Assembler.CompileTwoRegistersToNone
@@ -726,11 +725,43 @@ func (a *AssemblerImpl) EncodeTwoRegistersToRegister(n *NodeImpl) (err error) {
 	return
 }
 
-// encodeTwoRegisters:  MSUB (REG_INT, REG_INT), (REG_INT, REG_INT)
-// encodeTwoRegisters:  MSUB (REG_INT, ZERO), (REG_INT, REG_INT)
-// encodeTwoRegisters:  MSUBW (REG_INT, REG_INT), (REG_INT, REG_INT)
-// encodeTwoRegisters:  MSUBW (REG_INT, ZERO), (REG_INT, REG_INT)
-func (a *AssemblerImpl) EncodeTwoRegisters(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeThreeRegistersToRegister(n *NodeImpl) (err error) {
+	switch n.Instruction {
+	case MSUB, MSUBW:
+		// Dst = Src2 - (Src1 * Src3)
+		// "Data-processing (3 source)" in:
+		// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Data-Processing----Register?lang=en
+		src1RegBits, err := intRegisterBits(n.SrcReg)
+		if err != nil {
+			return err
+		}
+		src2RegBits, err := intRegisterBits(n.SrcReg2)
+		if err != nil {
+			return err
+		}
+		src3RegBits, err := intRegisterBits(n.DstReg)
+		if err != nil {
+			return err
+		}
+		dstRegBits, err := intRegisterBits(n.DstReg2)
+		if err != nil {
+			return err
+		}
+
+		var sf byte // is zero for MSUBW (32-bit MSUB).
+		if n.Instruction == MSUB {
+			sf = 0b1
+		}
+
+		a.Buf.Write([]byte{
+			(src3RegBits << 5) | dstRegBits,
+			0b1_0000000 | (src2RegBits << 2) | (src3RegBits >> 3),
+			src1RegBits,
+			sf<<7 | 0b00_11011,
+		})
+	default:
+		return errorEncodingUnsupported(n)
+	}
 	return
 }
 

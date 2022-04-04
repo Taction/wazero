@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/tetratelabs/wazero/internal/asm"
 	asm_arm64 "github.com/tetratelabs/wazero/internal/asm/arm64"
 )
@@ -270,6 +271,39 @@ func TestAssemblerImpl_EncodeTwoRegistersToNone(t *testing.T) {
 						require.Equal(t, expected, actual)
 					})
 
+				}
+			}
+		})
+	}
+}
+
+func TestAssemblerImpl_EncodeThreeRegistersToRegistere(t *testing.T) {
+	intRegs := []asm.Register{asm_arm64.REGZERO, asm_arm64.REG_R1, asm_arm64.REG_R10, asm_arm64.REG_R30}
+	for _, inst := range []asm.Instruction{asm_arm64.MSUB, asm_arm64.MSUBW} {
+		inst := inst
+		t.Run(asm_arm64.InstructionName(inst), func(t *testing.T) {
+			for _, src1 := range intRegs {
+				for _, src2 := range intRegs {
+					for _, src3 := range intRegs {
+						for _, dst := range intRegs {
+							src1, src2, src3, dst := src1, src2, src3, dst
+							t.Run(fmt.Sprintf("src1=%s,src2=%s,src3=%s,dst=%s",
+								asm_arm64.RegisterName(src1), asm_arm64.RegisterName(src2),
+								asm_arm64.RegisterName(src3), asm_arm64.RegisterName(dst)), func(t *testing.T) {
+								goasm := newGoasmAssembler(t, asm.NilRegister)
+								goasm.CompileThreeRegistersToRegister(inst, src1, src2, src3, dst)
+								expected, err := goasm.Assemble()
+								require.NoError(t, err)
+
+								a := asm_arm64.NewAssemblerImpl(asm.NilRegister)
+								err = a.EncodeThreeRegistersToRegister(&asm_arm64.NodeImpl{Instruction: inst, SrcReg: src1, SrcReg2: src2, DstReg: src3, DstReg2: dst})
+								require.NoError(t, err)
+
+								actual := a.Bytes()
+								require.Equal(t, expected, actual)
+							})
+						}
+					}
 				}
 			}
 		})

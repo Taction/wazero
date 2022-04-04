@@ -60,9 +60,9 @@ func TestNodeImpl_String(t *testing.T) {
 			exp: "ADD (R0, R8), R10",
 		},
 		{
-			in: &NodeImpl{Instruction: MSUB, Types: OperandTypesTwoRegisters,
+			in: &NodeImpl{Instruction: MSUB, Types: OperandTypesThreeRegistersToRegister,
 				SrcReg: REG_R0, SrcReg2: REG_R8, DstReg: REG_R10, DstReg2: REG_R1},
-			exp: "MSUB (R0, R8), (R10, R1)",
+			exp: "MSUB (R0, R8, R10), R1)",
 		},
 		{
 			in:  &NodeImpl{Instruction: CMPW, Types: OperandTypesTwoRegistersToNone, SrcReg: REG_R0, SrcReg2: REG_R8},
@@ -267,17 +267,17 @@ func Test_CompileTwoRegistersToRegister(t *testing.T) {
 	require.Equal(t, OperandTypeRegister, actualNode.Types.dst)
 }
 
-func Test_CompileTwoRegisters(t *testing.T) {
+func Test_CompileThreeRegistersToRegister(t *testing.T) {
 	a := NewAssemblerImpl(REG_R10)
-	a.CompileTwoRegisters(MOVD, REG_R27, REG_R10, REG_R0, REG_R28)
+	a.CompileThreeRegistersToRegister(MOVD, REG_R27, REG_R10, REG_R0, REG_R28)
 	actualNode := a.Current
 	require.Equal(t, MOVD, actualNode.Instruction)
 	require.Equal(t, REG_R27, actualNode.SrcReg)
 	require.Equal(t, REG_R10, actualNode.SrcReg2)
 	require.Equal(t, REG_R0, actualNode.DstReg)
 	require.Equal(t, REG_R28, actualNode.DstReg2)
-	require.Equal(t, OperandTypeTwoRegisters, actualNode.Types.src)
-	require.Equal(t, OperandTypeTwoRegisters, actualNode.Types.dst)
+	require.Equal(t, OperandTypeThreeRegisters, actualNode.Types.src)
+	require.Equal(t, OperandTypeRegister, actualNode.Types.dst)
 }
 
 func Test_CompileTwoRegistersToNone(t *testing.T) {

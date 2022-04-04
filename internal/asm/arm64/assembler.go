@@ -22,9 +22,9 @@ type Assembler interface {
 	// CompileTwoRegistersToRegister adds an instruction where source operands consists of two registers `src1` and `src2`,
 	// and the destination is the register `dst`.
 	CompileTwoRegistersToRegister(instruction asm.Instruction, src1, src2, dst asm.Register)
-	// CompileTwoRegisters adds an instruction where source operands consist of two registers `src1` and `src2`,
-	// and destination operands consist of `dst1` and `dst2` registers.
-	CompileTwoRegisters(instruction asm.Instruction, src1, src2, dst1, dst2 asm.Register)
+	// CompileTwoRegisters adds an instruction where source operands consist of three registers `src1`, `src2` and `src3`,
+	// and destination operands consist of `dst` register.
+	CompileThreeRegistersToRegister(instruction asm.Instruction, src1, src2, src3, dst asm.Register)
 	// CompileTwoRegistersToNone adds an instruction where source operands consist of two registers `src1` and `src2`,
 	// and destination operand is unspecified.
 	CompileTwoRegistersToNone(instruction asm.Instruction, src1, src2 asm.Register)

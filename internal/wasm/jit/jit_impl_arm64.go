@@ -1674,7 +1674,8 @@ func (c *arm64Compiler) compileRem(o *wazeroir.OperationRem) error {
 	// [result: x2=quotient, x3=remainder]
 	//
 	c.assembler.CompileTwoRegistersToRegister(divInst, divisorReg, dividendReg, resultReg)
-	c.assembler.CompileTwoRegisters(msubInst, divisorReg, dividendReg, resultReg, resultReg)
+	// ResultReg = dividendReg - (divisorReg * resultReg)
+	c.assembler.CompileThreeRegistersToRegister(msubInst, divisorReg, dividendReg, resultReg, resultReg)
 
 	c.markRegisterUnused(dividend.register, divisor.register)
 	c.pushValueLocationOnRegister(resultReg)

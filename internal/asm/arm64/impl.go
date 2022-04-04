@@ -264,7 +264,7 @@ func (a *AssemblerImpl) Assemble() ([]byte, error) {
 		}
 	}
 
-	code := a.Buf.Bytes()
+	code := a.Bytes()
 	for _, cb := range a.OnGenerateCallbacks {
 		if err := cb(code); err != nil {
 			return nil, err
@@ -273,41 +273,50 @@ func (a *AssemblerImpl) Assemble() ([]byte, error) {
 	return code, nil
 }
 
+func (a *AssemblerImpl) Bytes() []byte {
+	// 16 bytes alignment to line our impl with golang-asm.
+	// TODO: delete later.
+	if pad := 16 - a.Buf.Len()%16; pad > 0 {
+		a.Buf.Write(make([]byte, pad))
+	}
+	return a.Buf.Bytes()
+}
+
 // EncodeNode encodes the given node into writer.
 func (a *AssemblerImpl) EncodeNode(n *NodeImpl) (err error) {
 	switch n.Types {
 	case OperandTypesNoneToNone:
-		err = a.encodeNoneToNone(n)
+		err = a.EncodeNoneToNone(n)
 	case OperandTypesNoneToRegister:
-		err = a.encodeNoneToRegister(n)
+		err = a.EncodeNoneToRegister(n)
 	case OperandTypesNoneToMemory:
-		err = a.encodeNoneToMemory(n)
+		err = a.EncodeNoneToMemory(n)
 	case OperandTypesNoneToBranch:
-		err = a.encodeNoneToBranch(n)
+		err = a.EncodeNoneToBranch(n)
 	case OperandTypesRegisterToRegister:
-		err = a.encodeRegisterToRegister(n)
+		err = a.EncodeRegisterToRegister(n)
 	case OperandTypesLeftShiftedRegisterToRegister:
-		err = a.encodeLeftShiftedRegisterToRegister(n)
+		err = a.EncodeLeftShiftedRegisterToRegister(n)
 	case OperandTypesTwoRegistersToRegister:
-		err = a.encodeTwoRegistersToRegister(n)
+		err = a.EncodeTwoRegistersToRegister(n)
 	case OperandTypesTwoRegisters:
-		err = a.encodeTwoRegisters(n)
+		err = a.EncodeTwoRegisters(n)
 	case OperandTypesTwoRegistersToNone:
-		err = a.encodeTwoRegistersToNone(n)
+		err = a.EncodeTwoRegistersToNone(n)
 	case OperandTypesRegisterAndConstToNone:
-		err = a.encodeRegisterAndConstToNone(n)
+		err = a.EncodeRegisterAndConstToNone(n)
 	case OperandTypesRegisterToMemory:
-		err = a.encodeRegisterToMemory(n)
+		err = a.EncodeRegisterToMemory(n)
 	case OperandTypesMemoryToRegister:
-		err = a.encodeMemoryToRegister(n)
+		err = a.EncodeMemoryToRegister(n)
 	case OperandTypesConstToRegister:
-		err = a.encodeConstToRegister(n)
+		err = a.EncodeConstToRegister(n)
 	case OperandTypesSIMDByteToSIMDByte:
-		err = a.encodeSIMDByteToSIMDByte(n)
+		err = a.EncodeSIMDByteToSIMDByte(n)
 	case OperandTypesSIMDByteToRegister:
-		err = a.encodeSIMDByteToRegister(n)
+		err = a.EncodeSIMDByteToRegister(n)
 	case OperandTypesTwoSIMDBytesToSIMDByteRegister:
-		err = a.encodeTwoSIMDBytesToSIMDByteRegister(n)
+		err = a.EncodeTwoSIMDBytesToSIMDByteRegister(n)
 	default:
 		err = fmt.Errorf("encoder undefined for [%s] operand type", n.Types)
 	}
@@ -484,18 +493,38 @@ func (a *AssemblerImpl) CompileConditionalRegisterSet(cond asm.ConditionalRegist
 	n.DstReg = dstReg
 }
 
-// encodeNoneToNone:  NOP
-func (a *AssemblerImpl) encodeNoneToNone(n *NodeImpl) (err error) {
+func errorEncodingUnsupported(n *NodeImpl) error {
+	return fmt.Errorf("%s is unsupported for %s type", InstructionName(n.Instruction), n.Types)
+}
+
+func (a *AssemblerImpl) EncodeNoneToNone(n *NodeImpl) (err error) {
+	if n.Instruction != NOP {
+		err = errorEncodingUnsupported(n)
+	}
 	return
 }
 
-// encodeNoneToRegister:  RET REG_INT
-func (a *AssemblerImpl) encodeNoneToRegister(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeNoneToRegister(n *NodeImpl) (err error) {
+	if n.Instruction != RET {
+		return errorEncodingUnsupported(n)
+	}
+
+	if !isIntRegister(n.DstReg) {
+		return fmt.Errorf("RET needs integer register as desination but got %s", RegisterName(n.DstReg))
+	}
+
+	regBits := intRegisterBits(n.DstReg)
+	a.Buf.Write([]byte{
+		0x00 | (regBits << 5),
+		0x00 | (regBits >> 3),
+		0b01011111,
+		0b11010110,
+	})
 	return
 }
 
 // encodeNoneToMemory:  B [REG_INT + IMMEDIATE]
-func (a *AssemblerImpl) encodeNoneToMemory(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeNoneToMemory(n *NodeImpl) (err error) {
 	return
 }
 
@@ -512,7 +541,7 @@ func (a *AssemblerImpl) encodeNoneToMemory(n *NodeImpl) (err error) {
 // encodeNoneToBranch:  BMI BRANCH_TARGET
 // encodeNoneToBranch:  BNE BRANCH_TARGET
 // encodeNoneToBranch:  BVS BRANCH_TARGET
-func (a *AssemblerImpl) encodeNoneToBranch(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeNoneToBranch(n *NodeImpl) (err error) {
 	return
 }
 
@@ -619,7 +648,7 @@ func (a *AssemblerImpl) encodeNoneToBranch(n *NodeImpl) (err error) {
 // encodeRegisterToRegister:  UDIVW REG_INT, REG_INT
 // encodeRegisterToRegister:  UXTW REG_INT, REG_INT
 // encodeRegisterToRegister:  UXTW ZERO, ZERO
-func (a *AssemblerImpl) encodeRegisterToRegister(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 	return
 }
 
@@ -627,7 +656,7 @@ func (a *AssemblerImpl) encodeRegisterToRegister(n *NodeImpl) (err error) {
 // encodeLeftShiftedRegisterToRegister:  ADD (REG_INT, REG_INT << 3), REG_INT
 // encodeLeftShiftedRegisterToRegister:  ADD (REG_INT, REG_INT << 4), REG_INT
 // encodeLeftShiftedRegisterToRegister:  ADD (REG_INT, REG_INT << 5), REG_INT
-func (a *AssemblerImpl) encodeLeftShiftedRegisterToRegister(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeLeftShiftedRegisterToRegister(n *NodeImpl) (err error) {
 	return
 }
 
@@ -666,7 +695,7 @@ func (a *AssemblerImpl) encodeLeftShiftedRegisterToRegister(n *NodeImpl) (err er
 // encodeTwoRegistersToRegister:  UDIV (REG_INT, REG_INT), REG_INT
 // encodeTwoRegistersToRegister:  UDIV (REG_INT, ZERO), REG_INT
 // encodeTwoRegistersToRegister:  UDIVW (REG_INT, REG_INT), REG_INT
-func (a *AssemblerImpl) encodeTwoRegistersToRegister(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeTwoRegistersToRegister(n *NodeImpl) (err error) {
 	return
 }
 
@@ -674,7 +703,7 @@ func (a *AssemblerImpl) encodeTwoRegistersToRegister(n *NodeImpl) (err error) {
 // encodeTwoRegisters:  MSUB (REG_INT, ZERO), (REG_INT, REG_INT)
 // encodeTwoRegisters:  MSUBW (REG_INT, REG_INT), (REG_INT, REG_INT)
 // encodeTwoRegisters:  MSUBW (REG_INT, ZERO), (REG_INT, REG_INT)
-func (a *AssemblerImpl) encodeTwoRegisters(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeTwoRegisters(n *NodeImpl) (err error) {
 	return
 }
 
@@ -688,12 +717,12 @@ func (a *AssemblerImpl) encodeTwoRegisters(n *NodeImpl) (err error) {
 // encodeTwoRegistersToNone:  CMPW (ZERO, ZERO)
 // encodeTwoRegistersToNone:  FCMPD (REG_FLOAT, REG_FLOAT)
 // encodeTwoRegistersToNone:  FCMPS (REG_FLOAT, REG_FLOAT)
-func (a *AssemblerImpl) encodeTwoRegistersToNone(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeTwoRegistersToNone(n *NodeImpl) (err error) {
 	return
 }
 
 // encodeRegisterAndConstToNone:  CMP (REG_INT, IMMEDIATE)
-func (a *AssemblerImpl) encodeRegisterAndConstToNone(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeRegisterAndConstToNone(n *NodeImpl) (err error) {
 	return
 }
 
@@ -714,7 +743,7 @@ func (a *AssemblerImpl) encodeRegisterAndConstToNone(n *NodeImpl) (err error) {
 // encodeRegisterToMemory:  MOVW ZERO, [REG_INT + IMMEDIATE]
 // encodeRegisterToMemory:  MOVW ZERO, [REG_INT + REG_INT]
 // encodeRegisterToMemory:  MOVWU REG_INT, [REG_INT + IMMEDIATE]
-func (a *AssemblerImpl) encodeRegisterToMemory(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeRegisterToMemory(n *NodeImpl) (err error) {
 	return
 }
 
@@ -733,7 +762,7 @@ func (a *AssemblerImpl) encodeRegisterToMemory(n *NodeImpl) (err error) {
 // encodeMemoryToRegister:  MOVW [REG_INT + REG_INT], REG_INT
 // encodeMemoryToRegister:  MOVWU [REG_INT + IMMEDIATE], REG_INT
 // encodeMemoryToRegister:  MOVWU [REG_INT + REG_INT], REG_INT
-func (a *AssemblerImpl) encodeMemoryToRegister(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeMemoryToRegister(n *NodeImpl) (err error) {
 	return
 }
 
@@ -743,22 +772,30 @@ func (a *AssemblerImpl) encodeMemoryToRegister(n *NodeImpl) (err error) {
 // encodeConstToRegister:  MOVW IMMEDIATE, REG_INT
 // encodeConstToRegister:  SUB IMMEDIATE, REG_INT
 // encodeConstToRegister:  SUBS IMMEDIATE, REG_INT
-func (a *AssemblerImpl) encodeConstToRegister(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeConstToRegister(n *NodeImpl) (err error) {
 	return
 }
 
 // encodeSIMDByteToSIMDByte:  VCNT REG_FLOAT.B8, REG_FLOAT.B8
-func (a *AssemblerImpl) encodeSIMDByteToSIMDByte(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeSIMDByteToSIMDByte(n *NodeImpl) (err error) {
 	return
 }
 
 // encodeSIMDByteToRegister:  VUADDLV REG_FLOAT.B8, REG_FLOAT
 // encodeSIMDByteToSIMDByte:  VCNT REG_FLOAT.B8, REG_FLOAT.B8
-func (a *AssemblerImpl) encodeSIMDByteToRegister(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeSIMDByteToRegister(n *NodeImpl) (err error) {
 	return
 }
 
 // encodeTwoSIMDBytesToSIMDByteRegister: VBIT (REG_FLOAT.B8, REG_FLOAT.B8), REG_FLOAT.B8
-func (a *AssemblerImpl) encodeTwoSIMDBytesToSIMDByteRegister(n *NodeImpl) (err error) {
+func (a *AssemblerImpl) EncodeTwoSIMDBytesToSIMDByteRegister(n *NodeImpl) (err error) {
 	return
+}
+
+func isIntRegister(r asm.Register) bool {
+	return REG_R0 <= r && r <= REG_R30
+}
+
+func intRegisterBits(r asm.Register) byte {
+	return byte((r - REG_R0))
 }

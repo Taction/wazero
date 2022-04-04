@@ -513,11 +513,11 @@ func (a *AssemblerImpl) EncodeJumpToRegister(n *NodeImpl) (err error) {
 		return errorEncodingUnsupported(n)
 	}
 
-	if !isIntRegister(n.DstReg) {
-		return fmt.Errorf("%s needs integer register as desination but got %s", InstructionName(n.Instruction), RegisterName(n.DstReg))
+	regBits, err := intRegisterBits(n.DstReg)
+	if err != nil {
+		return fmt.Errorf("invalid destination register: %w", err)
 	}
 
-	regBits := intRegisterBits(n.DstReg)
 	a.Buf.Write([]byte{
 		0x00 | (regBits << 5),
 		0x00 | (regBits >> 3),
@@ -651,11 +651,38 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 	return
 }
 
-// encodeLeftShiftedRegisterToRegister:  ADD (REG_INT, REG_INT << 2), REG_INT
-// encodeLeftShiftedRegisterToRegister:  ADD (REG_INT, REG_INT << 3), REG_INT
-// encodeLeftShiftedRegisterToRegister:  ADD (REG_INT, REG_INT << 4), REG_INT
-// encodeLeftShiftedRegisterToRegister:  ADD (REG_INT, REG_INT << 5), REG_INT
 func (a *AssemblerImpl) EncodeLeftShiftedRegisterToRegister(n *NodeImpl) (err error) {
+	const logicalLeftShiftBits = 0b00
+
+	baseRegBits, err := intRegisterBits(n.SrcReg)
+	if err != nil {
+		return err
+	}
+	shiftTargetRegBits, err := intRegisterBits(n.SrcReg2)
+	if err != nil {
+		return err
+	}
+	dstRegBits, err := intRegisterBits(n.DstReg)
+	if err != nil {
+		return err
+	}
+
+	switch n.Instruction {
+	case ADD:
+		if n.SrcConst < 0 || n.SrcConst > 64 {
+			return fmt.Errorf("shift amount must fit in unsigned 6-bit integer (0-64) but got %d", n.SrcConst)
+		}
+		shiftByte := byte(n.SrcConst)
+		a.Buf.Write([]byte{
+			(baseRegBits << 5) | dstRegBits,
+			(shiftByte << 2) | (baseRegBits >> 3),
+			(logicalLeftShiftBits << 6) | shiftTargetRegBits,
+			0b1000_1011,
+		})
+	default:
+		return errorEncodingUnsupported(n)
+	}
+
 	return
 }
 
@@ -792,9 +819,14 @@ func (a *AssemblerImpl) EncodeTwoSIMDBytesToSIMDByteRegister(n *NodeImpl) (err e
 }
 
 func isIntRegister(r asm.Register) bool {
-	return REG_R0 <= r && r <= REG_R30
+	return REG_R0 <= r && r <= REGZERO
 }
 
-func intRegisterBits(r asm.Register) byte {
-	return byte((r - REG_R0))
+func intRegisterBits(r asm.Register) (ret byte, err error) {
+	if !isIntRegister(r) {
+		err = fmt.Errorf("%s is not integer", RegisterName(r))
+	} else {
+		ret = byte((r - REG_R0))
+	}
+	return
 }

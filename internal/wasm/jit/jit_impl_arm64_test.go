@@ -69,7 +69,7 @@ func TestArm64Compiler_readInstructionAddress(t *testing.T) {
 
 		// Branch to the instruction after RET below via the absolute
 		// address stored in destinationRegister.
-		compiler.assembler.CompileJumpToMemory(arm64.B, addressReg, 0)
+		compiler.assembler.CompileJumpToMemory(arm64.B, addressReg)
 
 		// If we fail to branch, we reach here and exit with unreachable status,
 		// so the assertion would fail.

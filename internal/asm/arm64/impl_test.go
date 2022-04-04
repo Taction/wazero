@@ -212,11 +212,10 @@ func TestAssemblerImpl_CompileJumpToRegister(t *testing.T) {
 
 func TestAssemblerImpl_CompileJumpToMemory(t *testing.T) {
 	a := NewAssemblerImpl(REG_R10)
-	a.CompileJumpToMemory(BNE, REG_R27, 100)
+	a.CompileJumpToMemory(BNE, REG_R27)
 	actualNode := a.Current
 	require.Equal(t, BNE, actualNode.Instruction)
 	require.Equal(t, REG_R27, actualNode.DstReg)
-	require.Equal(t, int64(100), actualNode.DstConst)
 	require.Equal(t, OperandTypeNone, actualNode.Types.src)
 	require.Equal(t, OperandTypeMemory, actualNode.Types.dst)
 }

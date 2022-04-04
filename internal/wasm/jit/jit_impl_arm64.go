@@ -355,7 +355,7 @@ func (c *arm64Compiler) compileReturnFunction() error {
 		// "rb.caller" is below the top address.
 		callFrameStackTopAddressRegister, -(callFrameDataSize - callFrameReturnAddressOffset),
 		tmpReg)
-	c.assembler.CompileJumpToMemory(arm64.B, tmpReg, 0)
+	c.assembler.CompileJumpToMemory(arm64.B, tmpReg)
 
 	c.markRegisterUnused(tmpRegs...)
 	return nil
@@ -799,7 +799,7 @@ func (c *arm64Compiler) compileBrTable(o *wazeroir.OperationBrTable) error {
 	// So we could achieve the br_table jump by adding them and jump into the resulting address.
 	c.assembler.CompileRegisterToRegister(arm64.ADD, tmpReg, index.register)
 
-	c.assembler.CompileJumpToMemory(arm64.B, index.register, 0)
+	c.assembler.CompileJumpToMemory(arm64.B, index.register)
 
 	// We no longer need the index's register, so mark it unused.
 	c.markRegisterUnused(index.register)
@@ -1003,7 +1003,7 @@ func (c *arm64Compiler) compileCallImpl(index wasm.Index, compiledFunctionAddres
 		compiledFunctionRegister, compiledFunctionCodeInitialAddressOffset,
 		tmp)
 
-	c.assembler.CompileJumpToMemory(arm64.B, tmp, 0)
+	c.assembler.CompileJumpToMemory(arm64.B, tmp)
 
 	// All the registers used are temporary so we mark them unused.
 	c.markRegisterUnused(freeRegisters...)

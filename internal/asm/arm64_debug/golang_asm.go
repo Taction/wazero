@@ -184,12 +184,11 @@ func (a *assemblerGoAsmImpl) CompileJump(jmpInstruction asm.Instruction) asm.Nod
 }
 
 // CompileJumpToMemory implements AssemblerBase.CompileJumpToMemory.
-func (a *assemblerGoAsmImpl) CompileJumpToMemory(jmpInstruction asm.Instruction, baseReg asm.Register, offset asm.ConstantValue) {
+func (a *assemblerGoAsmImpl) CompileJumpToMemory(jmpInstruction asm.Instruction, baseReg asm.Register) {
 	br := a.NewProg()
 	br.As = castAsGolangAsmInstruction[jmpInstruction]
 	br.To.Type = obj.TYPE_MEM
 	br.To.Reg = castAsGolangAsmRegister[baseReg]
-	br.To.Offset = offset
 	a.AddInstruction(br)
 }
 

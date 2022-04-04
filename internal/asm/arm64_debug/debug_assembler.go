@@ -145,9 +145,9 @@ func (ta *testAssembler) CompileJump(jmpInstruction asm.Instruction) asm.Node {
 }
 
 // CompileJumpToMemory implements Assembler.CompileJumpToMemory.
-func (ta *testAssembler) CompileJumpToMemory(jmpInstruction asm.Instruction, baseReg asm.Register, offset asm.ConstantValue) {
-	ta.goasm.CompileJumpToMemory(jmpInstruction, baseReg, offset)
-	ta.a.CompileJumpToMemory(jmpInstruction, baseReg, offset)
+func (ta *testAssembler) CompileJumpToMemory(jmpInstruction asm.Instruction, baseReg asm.Register) {
+	ta.goasm.CompileJumpToMemory(jmpInstruction, baseReg)
+	ta.a.CompileJumpToMemory(jmpInstruction, baseReg)
 }
 
 // CompileJumpToRegister implements Assembler.CompileJumpToRegister.

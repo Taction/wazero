@@ -287,10 +287,8 @@ func (a *AssemblerImpl) EncodeNode(n *NodeImpl) (err error) {
 	switch n.Types {
 	case OperandTypesNoneToNone:
 		err = a.EncodeNoneToNone(n)
-	case OperandTypesNoneToRegister:
-		err = a.EncodeNoneToRegister(n)
-	case OperandTypesNoneToMemory:
-		err = a.EncodeNoneToMemory(n)
+	case OperandTypesNoneToRegister, OperandTypesNoneToMemory:
+		err = a.EncodeJumpToRegister(n)
 	case OperandTypesNoneToBranch:
 		err = a.EncodeNoneToBranch(n)
 	case OperandTypesRegisterToRegister:
@@ -389,10 +387,9 @@ func (a *AssemblerImpl) CompileJump(jmpInstruction asm.Instruction) asm.Node {
 }
 
 // CompileJumpToMemory implements asm.AssemblerBase.CompileJumpToMemory
-func (a *AssemblerImpl) CompileJumpToMemory(jmpInstruction asm.Instruction, baseReg asm.Register, offset asm.ConstantValue) {
+func (a *AssemblerImpl) CompileJumpToMemory(jmpInstruction asm.Instruction, baseReg asm.Register) {
 	n := a.newNode(jmpInstruction, OperandTypesNoneToMemory)
 	n.DstReg = baseReg
-	n.DstConst = offset
 }
 
 // CompileJumpToRegister implements asm.AssemblerBase.CompileJumpToRegister
@@ -504,27 +501,29 @@ func (a *AssemblerImpl) EncodeNoneToNone(n *NodeImpl) (err error) {
 	return
 }
 
-func (a *AssemblerImpl) EncodeNoneToRegister(n *NodeImpl) (err error) {
-	if n.Instruction != RET {
+func (a *AssemblerImpl) EncodeJumpToRegister(n *NodeImpl) (err error) {
+	// "Unconditional branch (register)" in https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Branches--Exception-Generating-and-System-instructions
+	var opc byte
+	switch n.Instruction {
+	case RET:
+		opc = 0b0010
+	case B:
+		opc = 0b0000
+	default:
 		return errorEncodingUnsupported(n)
 	}
 
 	if !isIntRegister(n.DstReg) {
-		return fmt.Errorf("RET needs integer register as desination but got %s", RegisterName(n.DstReg))
+		return fmt.Errorf("%s needs integer register as desination but got %s", InstructionName(n.Instruction), RegisterName(n.DstReg))
 	}
 
 	regBits := intRegisterBits(n.DstReg)
 	a.Buf.Write([]byte{
 		0x00 | (regBits << 5),
 		0x00 | (regBits >> 3),
-		0b01011111,
-		0b11010110,
+		0b000_11111 | (opc << 5),
+		0b1101011_0 | (opc >> 3),
 	})
-	return
-}
-
-// encodeNoneToMemory:  B [REG_INT + IMMEDIATE]
-func (a *AssemblerImpl) EncodeNoneToMemory(n *NodeImpl) (err error) {
 	return
 }
 

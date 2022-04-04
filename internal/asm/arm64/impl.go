@@ -652,7 +652,6 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 }
 
 func (a *AssemblerImpl) EncodeLeftShiftedRegisterToRegister(n *NodeImpl) (err error) {
-	const logicalLeftShiftBits = 0b00
 
 	baseRegBits, err := intRegisterBits(n.SrcReg)
 	if err != nil {
@@ -669,6 +668,8 @@ func (a *AssemblerImpl) EncodeLeftShiftedRegisterToRegister(n *NodeImpl) (err er
 
 	switch n.Instruction {
 	case ADD:
+		// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Data-Processing----Register?lang=en#addsub_shift
+		const logicalLeftShiftBits = 0b00
 		if n.SrcConst < 0 || n.SrcConst > 64 {
 			return fmt.Errorf("shift amount must fit in unsigned 6-bit integer (0-64) but got %d", n.SrcConst)
 		}
@@ -733,17 +734,59 @@ func (a *AssemblerImpl) EncodeTwoRegisters(n *NodeImpl) (err error) {
 	return
 }
 
-// encodeTwoRegistersToNone:  CMP (REG_INT, REG_INT)
-// encodeTwoRegistersToNone:  CMP (REG_INT, ZERO)
-// encodeTwoRegistersToNone:  CMP (ZERO, REG_INT)
-// encodeTwoRegistersToNone:  CMP (ZERO, ZERO)
-// encodeTwoRegistersToNone:  CMPW (REG_INT, REG_INT)
-// encodeTwoRegistersToNone:  CMPW (REG_INT, ZERO)
-// encodeTwoRegistersToNone:  CMPW (ZERO, REG_INT)
-// encodeTwoRegistersToNone:  CMPW (ZERO, ZERO)
-// encodeTwoRegistersToNone:  FCMPD (REG_FLOAT, REG_FLOAT)
-// encodeTwoRegistersToNone:  FCMPS (REG_FLOAT, REG_FLOAT)
 func (a *AssemblerImpl) EncodeTwoRegistersToNone(n *NodeImpl) (err error) {
+	switch n.Instruction {
+	case CMPW, CMP:
+		// Comare on two registesr is an alias for "SUBS (src1, src2) ZERO"
+		// which can be encoded as SUBS (shifted registers) with zero shifting.
+		// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Data-Processing----Register?lang=en#addsub_shift
+		src1RegBits, err := intRegisterBits(n.SrcReg)
+		if err != nil {
+			return err
+		}
+		src2RegBits, err := intRegisterBits(n.SrcReg2)
+		if err != nil {
+			return err
+		}
+
+		var op byte
+		if n.Instruction == CMP {
+			op = 0b111
+		} else {
+			op = 0b011
+		}
+
+		a.Buf.Write([]byte{
+			(src2RegBits << 5) | zeroRegisterBits,
+			(src2RegBits >> 3),
+			src1RegBits,
+			0b01011 | (op << 5),
+		})
+	case FCMPS, FCMPD:
+		// "Floating-point compare" section in:
+		// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Data-Processing----Scalar-Floating-Point-and-Advanced-SIMD?lang=en
+		src1RegBits, err := floatRegisterBits(n.SrcReg)
+		if err != nil {
+			return err
+		}
+		src2RegBits, err := floatRegisterBits(n.SrcReg2)
+		if err != nil {
+			return err
+		}
+
+		var ftype byte // is zero for FCMPS (single precision float compare).
+		if n.Instruction == FCMPD {
+			ftype = 0b01
+		}
+		a.Buf.Write([]byte{
+			(src2RegBits << 5) | 0b00000,
+			0b001000_00 | (src2RegBits >> 3),
+			ftype<<6 | 0b1_00000 | src1RegBits,
+			0b000_11110,
+		})
+	default:
+		return errorEncodingUnsupported(n)
+	}
 	return
 }
 
@@ -818,8 +861,14 @@ func (a *AssemblerImpl) EncodeTwoSIMDBytesToSIMDByteRegister(n *NodeImpl) (err e
 	return
 }
 
+const zeroRegisterBits byte = 0b11111
+
 func isIntRegister(r asm.Register) bool {
 	return REG_R0 <= r && r <= REGZERO
+}
+
+func isFloatRegister(r asm.Register) bool {
+	return REG_F0 <= r && r <= REG_F31
 }
 
 func intRegisterBits(r asm.Register) (ret byte, err error) {
@@ -827,6 +876,15 @@ func intRegisterBits(r asm.Register) (ret byte, err error) {
 		err = fmt.Errorf("%s is not integer", RegisterName(r))
 	} else {
 		ret = byte((r - REG_R0))
+	}
+	return
+}
+
+func floatRegisterBits(r asm.Register) (ret byte, err error) {
+	if !isFloatRegister(r) {
+		err = fmt.Errorf("%s is not float", RegisterName(r))
+	} else {
+		ret = byte((r - REG_F0))
 	}
 	return
 }

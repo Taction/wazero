@@ -543,110 +543,6 @@ func (a *AssemblerImpl) EncodeNoneToBranch(n *NodeImpl) (err error) {
 	return
 }
 
-// encodeRegisterToRegister:  ADD REG_INT, REG_INT
-// encodeRegisterToRegister:  ADDW REG_INT, REG_INT
-// encodeRegisterToRegister:  CLZ REG_INT, REG_INT
-// encodeRegisterToRegister:  CLZW REG_INT, REG_INT
-// encodeRegisterToRegister:  CSET COND_EQ, REG_INT
-// encodeRegisterToRegister:  CSET COND_GE, REG_INT
-// encodeRegisterToRegister:  CSET COND_GT, REG_INT
-// encodeRegisterToRegister:  CSET COND_HI, REG_INT
-// encodeRegisterToRegister:  CSET COND_HS, REG_INT
-// encodeRegisterToRegister:  CSET COND_LE, REG_INT
-// encodeRegisterToRegister:  CSET COND_LO, REG_INT
-// encodeRegisterToRegister:  CSET COND_LS, REG_INT
-// encodeRegisterToRegister:  CSET COND_LT, REG_INT
-// encodeRegisterToRegister:  CSET COND_MI, REG_INT
-// encodeRegisterToRegister:  CSET COND_NE, REG_INT
-// encodeRegisterToRegister:  FABSD REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FABSS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FADDD REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FADDS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FCVTDS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FCVTSD REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FCVTZSD REG_FLOAT, REG_INT
-// encodeRegisterToRegister:  FCVTZSDW REG_FLOAT, REG_INT
-// encodeRegisterToRegister:  FCVTZSS REG_FLOAT, REG_INT
-// encodeRegisterToRegister:  FCVTZSSW REG_FLOAT, REG_INT
-// encodeRegisterToRegister:  FCVTZUD REG_FLOAT, REG_INT
-// encodeRegisterToRegister:  FCVTZUDW REG_FLOAT, REG_INT
-// encodeRegisterToRegister:  FCVTZUS REG_FLOAT, REG_INT
-// encodeRegisterToRegister:  FCVTZUSW REG_FLOAT, REG_INT
-// encodeRegisterToRegister:  FDIVD REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FDIVS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FMAXD REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FMAXS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FMIND REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FMINS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FMOVD REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FMOVD REG_FLOAT, REG_INT
-// encodeRegisterToRegister:  FMOVD REG_INT, REG_FLOAT
-// encodeRegisterToRegister:  FMOVD ZERO, REG_FLOAT
-// encodeRegisterToRegister:  FMOVS REG_FLOAT, REG_INT
-// encodeRegisterToRegister:  FMOVS REG_INT, REG_FLOAT
-// encodeRegisterToRegister:  FMOVS ZERO, REG_FLOAT
-// encodeRegisterToRegister:  FMULD REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FMULS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FNEGD REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FNEGS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FRINTMD REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FRINTMS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FRINTND REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FRINTNS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FRINTPD REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FRINTPS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FRINTZD REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FRINTZS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FSQRTD REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  FSQRTS REG_FLOAT, REG_FLOAT
-// encodeRegisterToRegister:  MOVD REG_INT, REG_INT
-// encodeRegisterToRegister:  MOVD ZERO, REG_INT
-// encodeRegisterToRegister:  MOVW REG_INT, REG_INT
-// encodeRegisterToRegister:  MRS FPSR, REG_INT
-// encodeRegisterToRegister:  MSR ZERO, FPSR
-// encodeRegisterToRegister:  MUL REG_INT, REG_INT
-// encodeRegisterToRegister:  MULW REG_INT, REG_INT
-// encodeRegisterToRegister:  NEG REG_INT, REG_INT
-// encodeRegisterToRegister:  NEGW REG_INT, REG_INT
-// encodeRegisterToRegister:  RBIT REG_INT, REG_INT
-// encodeRegisterToRegister:  RBITW REG_INT, REG_INT
-// encodeRegisterToRegister:  SCVTFD REG_INT, REG_FLOAT
-// encodeRegisterToRegister:  SCVTFD ZERO, REG_FLOAT
-// encodeRegisterToRegister:  SCVTFS REG_INT, REG_FLOAT
-// encodeRegisterToRegister:  SCVTFS ZERO, REG_FLOAT
-// encodeRegisterToRegister:  SCVTFWD REG_INT, REG_FLOAT
-// encodeRegisterToRegister:  SCVTFWD ZERO, REG_FLOAT
-// encodeRegisterToRegister:  SCVTFWS REG_INT, REG_FLOAT
-// encodeRegisterToRegister:  SCVTFWS ZERO, REG_FLOAT
-// encodeRegisterToRegister:  SDIV REG_INT, REG_INT
-// encodeRegisterToRegister:  SDIV REG_INT, ZERO
-// encodeRegisterToRegister:  SDIVW REG_INT, REG_INT
-// encodeRegisterToRegister:  SDIVW REG_INT, ZERO
-// encodeRegisterToRegister:  SUB REG_INT, REG_INT
-// encodeRegisterToRegister:  SXTB REG_INT, REG_INT
-// encodeRegisterToRegister:  SXTB ZERO, ZERO
-// encodeRegisterToRegister:  SXTBW REG_INT, REG_INT
-// encodeRegisterToRegister:  SXTBW ZERO, ZERO
-// encodeRegisterToRegister:  SXTH REG_INT, REG_INT
-// encodeRegisterToRegister:  SXTH ZERO, ZERO
-// encodeRegisterToRegister:  SXTHW REG_INT, REG_INT
-// encodeRegisterToRegister:  SXTHW ZERO, ZERO
-// encodeRegisterToRegister:  SXTW REG_INT, REG_INT
-// encodeRegisterToRegister:  SXTW ZERO, ZERO
-// encodeRegisterToRegister:  UCVTFD REG_INT, REG_FLOAT
-// encodeRegisterToRegister:  UCVTFD ZERO, REG_FLOAT
-// encodeRegisterToRegister:  UCVTFS REG_INT, REG_FLOAT
-// encodeRegisterToRegister:  UCVTFS ZERO, REG_FLOAT
-// encodeRegisterToRegister:  UCVTFWD REG_INT, REG_FLOAT
-// encodeRegisterToRegister:  UCVTFWD ZERO, REG_FLOAT
-// encodeRegisterToRegister:  UCVTFWS REG_INT, REG_FLOAT
-// encodeRegisterToRegister:  UCVTFWS ZERO, REG_FLOAT
-// encodeRegisterToRegister:  UDIV REG_INT, REG_INT
-// encodeRegisterToRegister:  UDIV REG_INT, ZERO
-// encodeRegisterToRegister:  UDIVW REG_INT, REG_INT
-// encodeRegisterToRegister:  UXTW REG_INT, REG_INT
-// encodeRegisterToRegister:  UXTW ZERO, ZERO
-
 func checkRegisterToRegisterType(src, dst asm.Register, requireSrcInt, requireDstInt bool) (err error) {
 	isSrcInt, isDstInt := isIntRegister(src), isIntRegister(dst)
 	if isSrcInt && !requireSrcInt {
@@ -662,6 +558,138 @@ func checkRegisterToRegisterType(src, dst asm.Register, requireSrcInt, requireDs
 }
 
 func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
+	srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
+
+	switch inst := n.Instruction; inst {
+	case ADD, ADDW, SUB:
+		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, true, true); err != nil {
+			return
+		}
+
+		if n.SrcConst < 0 || n.SrcConst > 64 {
+			return fmt.Errorf("shift amount must fit in unsigned 6-bit integer (0-64) but got %d", n.SrcConst)
+		}
+
+		// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Data-Processing----Register?lang=en#addsub_shift
+		var sfops byte
+		switch inst {
+		case ADD:
+			sfops = 0b100
+		case ADDW:
+		case SUB:
+			sfops = 0b110
+		}
+
+		a.Buf.Write([]byte{
+			(dstRegBits << 5) | dstRegBits,
+			(dstRegBits >> 3),
+			srcRegBits,
+			(sfops << 5) | 0b01011,
+		})
+
+		// CLZ REG_INT, REG_INT
+		// CLZW REG_INT, REG_INT
+		// CSET COND_EQ, REG_INT
+		// CSET COND_GE, REG_INT
+		// CSET COND_GT, REG_INT
+		// CSET COND_HI, REG_INT
+		// CSET COND_HS, REG_INT
+		// CSET COND_LE, REG_INT
+		// CSET COND_LO, REG_INT
+		// CSET COND_LS, REG_INT
+		// CSET COND_LT, REG_INT
+		// CSET COND_MI, REG_INT
+		// CSET COND_NE, REG_INT
+		// FABSD REG_FLOAT, REG_FLOAT
+		// FABSS REG_FLOAT, REG_FLOAT
+		// FADDD REG_FLOAT, REG_FLOAT
+		// FADDS REG_FLOAT, REG_FLOAT
+		// FCVTDS REG_FLOAT, REG_FLOAT
+		// FCVTSD REG_FLOAT, REG_FLOAT
+		// FCVTZSD REG_FLOAT, REG_INT
+		// FCVTZSDW REG_FLOAT, REG_INT
+		// FCVTZSS REG_FLOAT, REG_INT
+		// FCVTZSSW REG_FLOAT, REG_INT
+		// FCVTZUD REG_FLOAT, REG_INT
+		// FCVTZUDW REG_FLOAT, REG_INT
+		// FCVTZUS REG_FLOAT, REG_INT
+		// FCVTZUSW REG_FLOAT, REG_INT
+		// FDIVD REG_FLOAT, REG_FLOAT
+		// FDIVS REG_FLOAT, REG_FLOAT
+		// FMAXD REG_FLOAT, REG_FLOAT
+		// FMAXS REG_FLOAT, REG_FLOAT
+		// FMIND REG_FLOAT, REG_FLOAT
+		// FMINS REG_FLOAT, REG_FLOAT
+		// FMOVD REG_FLOAT, REG_FLOAT
+		// FMOVD REG_FLOAT, REG_INT
+		// FMOVD REG_INT, REG_FLOAT
+		// FMOVD ZERO, REG_FLOAT
+		// FMOVS REG_FLOAT, REG_INT
+		// FMOVS REG_INT, REG_FLOAT
+		// FMOVS ZERO, REG_FLOAT
+		// FMULD REG_FLOAT, REG_FLOAT
+		// FMULS REG_FLOAT, REG_FLOAT
+		// FNEGD REG_FLOAT, REG_FLOAT
+		// FNEGS REG_FLOAT, REG_FLOAT
+		// FRINTMD REG_FLOAT, REG_FLOAT
+		// FRINTMS REG_FLOAT, REG_FLOAT
+		// FRINTND REG_FLOAT, REG_FLOAT
+		// FRINTNS REG_FLOAT, REG_FLOAT
+		// FRINTPD REG_FLOAT, REG_FLOAT
+		// FRINTPS REG_FLOAT, REG_FLOAT
+		// FRINTZD REG_FLOAT, REG_FLOAT
+		// FRINTZS REG_FLOAT, REG_FLOAT
+		// FSQRTD REG_FLOAT, REG_FLOAT
+		// FSQRTS REG_FLOAT, REG_FLOAT
+		// MOVD REG_INT, REG_INT
+		// MOVD ZERO, REG_INT
+		// MOVW REG_INT, REG_INT
+		// MRS FPSR, REG_INT
+		// MSR ZERO, FPSR
+		// MUL REG_INT, REG_INT
+		// MULW REG_INT, REG_INT
+		// NEG REG_INT, REG_INT
+		// NEGW REG_INT, REG_INT
+		// RBIT REG_INT, REG_INT
+		// RBITW REG_INT, REG_INT
+		// SCVTFD REG_INT, REG_FLOAT
+		// SCVTFD ZERO, REG_FLOAT
+		// SCVTFS REG_INT, REG_FLOAT
+		// SCVTFS ZERO, REG_FLOAT
+		// SCVTFWD REG_INT, REG_FLOAT
+		// SCVTFWD ZERO, REG_FLOAT
+		// SCVTFWS REG_INT, REG_FLOAT
+		// SCVTFWS ZERO, REG_FLOAT
+		// SDIV REG_INT, REG_INT
+		// SDIV REG_INT, ZERO
+		// SDIVW REG_INT, REG_INT
+		// SDIVW REG_INT, ZERO
+		// SXTB REG_INT, REG_INT
+		// SXTB ZERO, ZERO
+		// SXTBW REG_INT, REG_INT
+		// SXTBW ZERO, ZERO
+		// SXTH REG_INT, REG_INT
+		// SXTH ZERO, ZERO
+		// SXTHW REG_INT, REG_INT
+		// SXTHW ZERO, ZERO
+		// SXTW REG_INT, REG_INT
+		// SXTW ZERO, ZERO
+		// UCVTFD REG_INT, REG_FLOAT
+		// UCVTFD ZERO, REG_FLOAT
+		// UCVTFS REG_INT, REG_FLOAT
+		// UCVTFS ZERO, REG_FLOAT
+		// UCVTFWD REG_INT, REG_FLOAT
+		// UCVTFWD ZERO, REG_FLOAT
+		// UCVTFWS REG_INT, REG_FLOAT
+		// UCVTFWS ZERO, REG_FLOAT
+		// UDIV REG_INT, REG_INT
+		// UDIV REG_INT, ZERO
+		// UDIVW REG_INT, REG_INT
+		// UXTW REG_INT, REG_INT
+		// UXTW ZERO, ZERO
+	default:
+		return errorEncodingUnsupported(n)
+	}
 	return
 }
 
@@ -697,7 +725,6 @@ func (a *AssemblerImpl) EncodeLeftShiftedRegisterToRegister(n *NodeImpl) (err er
 	default:
 		return errorEncodingUnsupported(n)
 	}
-
 	return
 }
 
@@ -929,6 +956,15 @@ func intRegisterBits(r asm.Register) (ret byte, err error) {
 func floatRegisterBits(r asm.Register) (ret byte, err error) {
 	if !isFloatRegister(r) {
 		err = fmt.Errorf("%s is not float", RegisterName(r))
+	} else {
+		ret = byte((r - REG_F0))
+	}
+	return
+}
+
+func registerBits(r asm.Register) (ret byte) {
+	if isIntRegister(r) {
+		ret = byte((r - REG_R0))
 	} else {
 		ret = byte((r - REG_F0))
 	}

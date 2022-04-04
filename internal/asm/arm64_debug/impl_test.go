@@ -277,7 +277,7 @@ func TestAssemblerImpl_EncodeTwoRegistersToNone(t *testing.T) {
 	}
 }
 
-func TestAssemblerImpl_EncodeThreeRegistersToRegistere(t *testing.T) {
+func TestAssemblerImpl_EncodeThreeRegistersToRegister(t *testing.T) {
 	intRegs := []asm.Register{asm_arm64.REGZERO, asm_arm64.REG_R1, asm_arm64.REG_R10, asm_arm64.REG_R30}
 	for _, inst := range []asm.Instruction{asm_arm64.MSUB, asm_arm64.MSUBW} {
 		inst := inst
@@ -304,6 +304,60 @@ func TestAssemblerImpl_EncodeThreeRegistersToRegistere(t *testing.T) {
 							})
 						}
 					}
+				}
+			}
+		})
+	}
+}
+
+func TestAssemblerImpl_EncodeRegisterToRegister(t *testing.T) {
+	t.Run("error", func(t *testing.T) {
+		for _, tc := range []struct {
+			n      *asm_arm64.NodeImpl
+			expErr string
+		}{
+			{
+				n: &asm_arm64.NodeImpl{Instruction: asm_arm64.ADR, Types: asm_arm64.OperandTypesRegisterToRegister,
+					SrcReg: asm_arm64.REG_R0, SrcReg2: asm_arm64.REG_R0, DstReg: asm_arm64.REG_R0},
+				expErr: "ADR is unsupported for from:register,to:register type",
+			},
+		} {
+			a := asm_arm64.NewAssemblerImpl(asm.NilRegister)
+			err := a.EncodeRegisterToRegister(tc.n)
+			require.EqualError(t, err, tc.expErr)
+		}
+	})
+
+	intRegs := []asm.Register{asm_arm64.REGZERO, asm_arm64.REG_R1, asm_arm64.REG_R10, asm_arm64.REG_R30}
+	// floatRegs := []asm.Register{}
+
+	for _, tc := range []struct {
+		inst             asm.Instruction
+		srcRegs, dstRegs []asm.Register
+	}{
+		{inst: asm_arm64.ADD, srcRegs: intRegs, dstRegs: intRegs},
+		{inst: asm_arm64.ADDW, srcRegs: intRegs, dstRegs: intRegs},
+		{inst: asm_arm64.SUB, srcRegs: intRegs, dstRegs: intRegs},
+	} {
+		tc := tc
+		t.Run(asm_arm64.InstructionName(tc.inst), func(t *testing.T) {
+			for _, src := range tc.srcRegs {
+				for _, dst := range tc.dstRegs {
+					src, dst := src, dst
+					t.Run(fmt.Sprintf("src=%s,dst=%s", asm_arm64.RegisterName(src), asm_arm64.RegisterName(dst)), func(t *testing.T) {
+						goasm := newGoasmAssembler(t, asm.NilRegister)
+						goasm.CompileRegisterToRegister(tc.inst, src, dst)
+						expected, err := goasm.Assemble()
+						require.NoError(t, err)
+
+						a := asm_arm64.NewAssemblerImpl(asm.NilRegister)
+						err = a.EncodeRegisterToRegister(&asm_arm64.NodeImpl{Instruction: tc.inst, SrcReg: src, DstReg: dst})
+						require.NoError(t, err)
+
+						actual := a.Bytes()
+						require.Equal(t, expected, actual)
+
+					})
 				}
 			}
 		})

@@ -1028,7 +1028,6 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 		// https://developer.arm.com/documentation/dui0801/g/A64-General-Instructions/SXTH
 		// SXTW is encoded as "SBFM Xd, Xn, #0, #31"
 		// https://developer.arm.com/documentation/dui0802/b/A64-General-Instructions/SXTW
-		// ubfx x30, x10, #0, #0x20
 
 		var n, sf, imms, opc byte
 		switch inst {
@@ -1042,8 +1041,6 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 			n, sf, imms = 0b0, 0b0, 0xf
 		case SXTW:
 			n, sf, imms = 0b1, 0b1, 0x1f
-		case UXTW:
-			n, sf, imms, opc = 0b1, 0b1, 0x20, 0b10
 		}
 
 		a.Buf.Write([]byte{
@@ -1052,12 +1049,6 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 			n << 6,
 			sf<<7 | opc<<5 | 0b10011,
 		})
-
-		// exp: 01111100
-		// actual: 10000000
-
-		// UXTW REG_INT, REG_INT
-		// UXTW ZERO, ZERO
 	default:
 		return errorEncodingUnsupported(n)
 	}

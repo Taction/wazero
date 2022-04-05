@@ -2197,7 +2197,7 @@ func (c *arm64Compiler) compileExtend(o *wazeroir.OperationExtend) error {
 	if o.Signed {
 		return c.compileSimpleUnop(arm64.SXTW)
 	} else {
-		return c.compileSimpleUnop(arm64.UXTW)
+		return c.compileSimpleUnop(arm64.MOVWU)
 	}
 }
 

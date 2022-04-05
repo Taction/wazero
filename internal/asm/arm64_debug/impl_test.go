@@ -329,8 +329,9 @@ func TestAssemblerImpl_EncodeRegisterToRegister(t *testing.T) {
 	})
 
 	intRegs := []asm.Register{asm_arm64.REGZERO, asm_arm64.REG_R1, asm_arm64.REG_R10, asm_arm64.REG_R30}
+	intRegsWithoutZero := intRegs[1:]
 	// conditionalRegs := []asm.Register{asm_arm64.REG_COND_EQ, asm_arm64.REG_COND_NE, asm_arm64.REG_COND_HS, asm_arm64.REG_COND_LO, asm_arm64.REG_COND_MI, asm_arm64.REG_COND_PL, asm_arm64.REG_COND_VS, asm_arm64.REG_COND_VC, asm_arm64.REG_COND_HI, asm_arm64.REG_COND_LS, asm_arm64.REG_COND_GE, asm_arm64.REG_COND_LT, asm_arm64.REG_COND_GT, asm_arm64.REG_COND_LE, asm_arm64.REG_COND_AL, asm_arm64.REG_COND_NV}
-	floatRegs := []asm.Register{asm_arm64.REG_F0, asm_arm64.REG_F15, asm_arm64.REG_F31}
+	// floatRegs := []asm.Register{asm_arm64.REG_F0, asm_arm64.REG_F15, asm_arm64.REG_F31}
 
 	for _, tc := range []struct {
 		inst             asm.Instruction
@@ -376,13 +377,14 @@ func TestAssemblerImpl_EncodeRegisterToRegister(t *testing.T) {
 		// {inst: asm_arm64.FCVTZUDW, srcRegs: floatRegs, dstRegs: intRegs},
 		// {inst: asm_arm64.FCVTZUS, srcRegs: floatRegs, dstRegs: intRegs},
 		// {inst: asm_arm64.FCVTZUSW, srcRegs: floatRegs, dstRegs: intRegs},
-
-		{inst: asm_arm64.FMOVD, srcRegs: floatRegs, dstRegs: floatRegs},
-		{inst: asm_arm64.FMOVS, srcRegs: floatRegs, dstRegs: floatRegs},
-		{inst: asm_arm64.FMOVD, srcRegs: intRegs, dstRegs: floatRegs},
-		{inst: asm_arm64.FMOVS, srcRegs: intRegs, dstRegs: floatRegs},
-		{inst: asm_arm64.FMOVD, srcRegs: floatRegs, dstRegs: intRegs},
-		{inst: asm_arm64.FMOVS, srcRegs: floatRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.FMOVD, srcRegs: floatRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.FMOVS, srcRegs: floatRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.FMOVD, srcRegs: intRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.FMOVS, srcRegs: intRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.FMOVD, srcRegs: floatRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.FMOVS, srcRegs: floatRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.MOVD, srcRegs: intRegs, dstRegs: intRegsWithoutZero},
+		// {inst: asm_arm64.MOVWU, srcRegs: intRegs, dstRegs: intRegsWithoutZero},
 	} {
 
 		tc := tc

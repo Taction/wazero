@@ -746,7 +746,7 @@ func (c *arm64Compiler) compileBrTable(o *wazeroir.OperationBrTable) error {
 	c.assembler.CompileTwoRegistersToNone(arm64.CMPW, tmpReg, index.register)
 	// If the value exceeds the length, we will branch into the default target (corresponding to len(o.Targets) index).
 	brDefaultIndex := c.assembler.CompileJump(arm64.BLO)
-	c.assembler.CompileRegisterToRegister(arm64.MOVW, tmpReg, index.register)
+	c.assembler.CompileRegisterToRegister(arm64.MOVWU, tmpReg, index.register)
 	c.assembler.SetJumpTargetOnNext(brDefaultIndex)
 
 	// We prepare the static data which holds the offset of
@@ -2027,7 +2027,7 @@ func (c *arm64Compiler) compileCopysign(o *wazeroir.OperationCopysign) error {
 
 // compileI32WrapFromI64 implements compiler.compileI32WrapFromI64 for the arm64 architecture.
 func (c *arm64Compiler) compileI32WrapFromI64() error {
-	return c.compileSimpleUnop(arm64.MOVW)
+	return c.compileSimpleUnop(arm64.MOVWU)
 }
 
 // compileITruncFromF implements compiler.compileITruncFromF for the arm64 architecture.

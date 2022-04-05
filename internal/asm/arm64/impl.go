@@ -559,7 +559,6 @@ func checkRegisterToRegisterType(src, dst asm.Register, requireSrcInt, requireDs
 }
 
 func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
-
 	switch inst := n.Instruction; inst {
 	case ADD, ADDW, SUB:
 		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, true, true); err != nil {
@@ -823,9 +822,38 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 			})
 		}
 
-		// MOVD REG_INT, REG_INT
-		// MOVD ZERO, REG_INT
-		// MOVW REG_INT, REG_INT
+	case MOVD, MOVWU:
+		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, true, true); err != nil {
+			return
+		} else if n.DstReg == REGZERO {
+			err = errors.New("MOV requires non-zero register as destination")
+			return
+		}
+
+		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
+		if n.SrcReg == REGZERO && inst == MOVD {
+			a.Buf.Write([]byte{
+				dstRegBits,
+				0x0,
+				0b1000_0000,
+				0b1_10_10010,
+			})
+		} else {
+			// MOV can be encoded as ORR (shifted register): "ORR Wd, WZR, Wm".
+			// https://developer.arm.com/documentation/100069/0609/A64-General-Instructions/MOV--register-
+
+			var sf byte
+			if inst == MOVD {
+				sf = 0b1
+			}
+			a.Buf.Write([]byte{
+				(zeroRegisterBits << 5) | dstRegBits,
+				(zeroRegisterBits >> 3),
+				0b000_00000 | srcRegBits,
+				sf<<7 | 0b0_01_01010,
+			})
+		}
+
 		// MRS FPSR, REG_INT
 		// MSR ZERO, FPSR
 		// MUL REG_INT, REG_INT
@@ -1116,7 +1144,7 @@ func (a *AssemblerImpl) EncodeTwoSIMDBytesToSIMDByteRegister(n *NodeImpl) (err e
 	return
 }
 
-const zeroRegisterBits byte = 0b11111
+var zeroRegisterBits byte = 0b11111
 
 func isIntRegister(r asm.Register) bool {
 	return REG_R0 <= r && r <= REGZERO

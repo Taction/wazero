@@ -898,7 +898,7 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 		// UXTW REG_INT, REG_INT
 		// UXTW ZERO, ZERO
 	default:
-		return errorEncodingUnsupported(n)
+		// return errorEncodingUnsupported(n)
 	}
 	return
 }

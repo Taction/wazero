@@ -582,12 +582,22 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 			srcRegBits,
 			(sfops << 5) | 0b01011,
 		})
-	case CLZ, CLZW:
+	case CLZ, CLZW, RBIT, RBITW:
 		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, true, true); err != nil {
 			return
 		}
 
-		var sf byte
+		var sf, opcode byte
+		switch inst {
+		case CLZ:
+			sf, opcode = 0b1, 0b000_100
+		case CLZW:
+			sf, opcode = 0b0, 0b000_100
+		case RBIT:
+			sf, opcode = 0b1, 0b000_000
+		case RBITW:
+			sf, opcode = 0b0, 0b000_000
+		}
 		if inst == CLZ {
 			sf = 1
 		}
@@ -595,7 +605,7 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
 		a.Buf.Write([]byte{
 			(srcRegBits << 5) | dstRegBits,
-			0b000100_00 | (srcRegBits >> 3),
+			opcode<<2 | (srcRegBits >> 3),
 			0b110_00000,
 			(sf << 7) | 0b0_1011010,
 		})
@@ -887,12 +897,75 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 			0b1101_0101,
 		})
 
-		// MUL REG_INT, REG_INT
-		// MULW REG_INT, REG_INT
-		// NEG REG_INT, REG_INT
-		// NEGW REG_INT, REG_INT
-		// RBIT REG_INT, REG_INT
-		// RBITW REG_INT, REG_INT
+	case MUL, MULW:
+		// Multiplications are encoded as MADD (zero register, src, dst), dst = zero + (src * dst) = src * dst.
+		// See "Data-processing (3 source)" in
+		// https://developer.arm.com/documentation/ddi0602/2021-06/Index-by-Encoding/Data-Processing----Register?lang=en
+		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, true, true); err != nil {
+			return
+		}
+
+		var sf byte
+		if inst == MUL {
+			sf = 0b1
+		}
+
+		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
+
+		a.Buf.Write([]byte{
+			dstRegBits<<5 | dstRegBits,
+			zeroRegisterBits<<2 | dstRegBits>>3,
+			srcRegBits,
+			sf<<7 | 0b11011,
+		})
+
+	case NEG, NEGW:
+		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
+
+		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, true, true); err != nil {
+			return
+		}
+
+		// NEG is encded as "SUB dst, XZR, src" = "dst = 0 - src"
+		// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Data-Processing----Register?lang=en#addsub_shift
+		var sf byte
+		if inst == NEG {
+			sf = 0b1
+		}
+
+		a.Buf.Write([]byte{
+			(zeroRegisterBits << 5) | dstRegBits,
+			(zeroRegisterBits >> 3),
+			srcRegBits,
+			sf<<7 | 0b0_10_00000 | 0b0_00_01011,
+		})
+
+	case SDIV, SDIVW, UDIV, UDIVW:
+		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
+
+		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, true, true); err != nil {
+			return
+		}
+
+		var sf, opcode byte
+		switch inst {
+		case SDIV:
+			sf, opcode = 0b1, 0b000011
+		case SDIVW:
+			sf, opcode = 0b0, 0b000011
+		case UDIV:
+			sf, opcode = 0b1, 0b000010
+		case UDIVW:
+			sf, opcode = 0b0, 0b000010
+		}
+
+		a.Buf.Write([]byte{
+			(dstRegBits << 5) | dstRegBits,
+			opcode<<2 | (dstRegBits >> 3),
+			0b110_00000 | srcRegBits,
+			sf<<7 | 0b0_00_11010,
+		})
+
 		// SCVTFD REG_INT, REG_FLOAT
 		// SCVTFD ZERO, REG_FLOAT
 		// SCVTFS REG_INT, REG_FLOAT
@@ -901,10 +974,6 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 		// SCVTFWD ZERO, REG_FLOAT
 		// SCVTFWS REG_INT, REG_FLOAT
 		// SCVTFWS ZERO, REG_FLOAT
-		// SDIV REG_INT, REG_INT
-		// SDIV REG_INT, ZERO
-		// SDIVW REG_INT, REG_INT
-		// SDIVW REG_INT, ZERO
 		// SXTB REG_INT, REG_INT
 		// SXTB ZERO, ZERO
 		// SXTBW REG_INT, REG_INT
@@ -923,9 +992,6 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 		// UCVTFWD ZERO, REG_FLOAT
 		// UCVTFWS REG_INT, REG_FLOAT
 		// UCVTFWS ZERO, REG_FLOAT
-		// UDIV REG_INT, REG_INT
-		// UDIV REG_INT, ZERO
-		// UDIVW REG_INT, REG_INT
 		// UXTW REG_INT, REG_INT
 		// UXTW ZERO, ZERO
 	default:

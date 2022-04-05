@@ -386,8 +386,18 @@ func TestAssemblerImpl_EncodeRegisterToRegister(t *testing.T) {
 		// {inst: asm_arm64.FMOVS, srcRegs: floatRegs, dstRegs: intRegs},
 		// {inst: asm_arm64.MOVD, srcRegs: intRegs, dstRegs: intRegsWithoutZero},
 		// {inst: asm_arm64.MOVWU, srcRegs: intRegs, dstRegs: intRegsWithoutZero},
-		{inst: asm_arm64.MRS, srcRegs: []asm.Register{asm_arm64.REG_FPSR}, dstRegs: intRegs},
-		{inst: asm_arm64.MSR, srcRegs: intRegs, dstRegs: []asm.Register{asm_arm64.REG_FPSR}},
+		// {inst: asm_arm64.MRS, srcRegs: []asm.Register{asm_arm64.REG_FPSR}, dstRegs: intRegs},
+		// {inst: asm_arm64.MSR, srcRegs: intRegs, dstRegs: []asm.Register{asm_arm64.REG_FPSR}},
+		// {inst: asm_arm64.MUL, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.MULW, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.NEG, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.NEGW, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.RBIT, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.RBITW, srcRegs: intRegs, dstRegs: intRegs},
+		{inst: asm_arm64.SDIV, srcRegs: intRegs, dstRegs: intRegs},
+		{inst: asm_arm64.SDIVW, srcRegs: intRegs, dstRegs: intRegs},
+		{inst: asm_arm64.UDIV, srcRegs: intRegs, dstRegs: intRegs},
+		{inst: asm_arm64.UDIVW, srcRegs: intRegs, dstRegs: intRegs},
 	} {
 
 		tc := tc

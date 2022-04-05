@@ -832,6 +832,9 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 
 		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
 		if n.SrcReg == REGZERO && inst == MOVD {
+			// If this is 64-bit mov from zero register, then we encode this as MOVK.
+			// See "Move wide (immediate)" in
+			// https://developer.arm.com/documentation/ddi0602/2021-06/Index-by-Encoding/Data-Processing----Immediate
 			a.Buf.Write([]byte{
 				dstRegBits,
 				0x0,
@@ -854,8 +857,36 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 			})
 		}
 
-		// MRS FPSR, REG_INT
-		// MSR ZERO, FPSR
+	case MRS:
+		if n.SrcReg != REG_FPSR {
+			return fmt.Errorf("MRS has only support for FPSR register as a src but got %s", RegisterName(n.SrcReg))
+		}
+
+		// For how to specify FPSR register, see "Accessing FPSR" in:
+		// https://developer.arm.com/documentation/ddi0595/2021-12/AArch64-Registers/FPSR--Floating-point-Status-Register?lang=en
+		dstRegBits := registerBits(n.DstReg)
+		a.Buf.Write([]byte{
+			0b001<<5 | dstRegBits,
+			0b0100<<4 | 0b0100,
+			0b0011_0000 | 0b11<<3 | 0b011,
+			0b1101_0101,
+		})
+
+	case MSR:
+		if n.DstReg != REG_FPSR {
+			return fmt.Errorf("MSR has only support for FPSR register as a dst but got %s", RegisterName(n.SrcReg))
+		}
+
+		// For how to specify FPSR register, see "Accessing FPSR" in:
+		// https://developer.arm.com/documentation/ddi0595/2021-12/AArch64-Registers/FPSR--Floating-point-Status-Register?lang=en
+		srcRegBits := registerBits(n.SrcReg)
+		a.Buf.Write([]byte{
+			0b001<<5 | srcRegBits,
+			0b0100<<4 | 0b0100,
+			0b0001_0000 | 0b11<<3 | 0b011,
+			0b1101_0101,
+		})
+
 		// MUL REG_INT, REG_INT
 		// MULW REG_INT, REG_INT
 		// NEG REG_INT, REG_INT

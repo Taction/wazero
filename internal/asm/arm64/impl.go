@@ -662,64 +662,124 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
 
 		// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Data-Processing----Scalar-Floating-Point-and-Advanced-SIMD?lang=en#floatdp1
-		var S, Type, Opcode byte
+		var tp, opcode byte
 		switch inst {
 		case FABSD:
-			Opcode, Type = 0b000001, 0b01
+			opcode, tp = 0b000001, 0b01
 		case FABSS:
-			Opcode, Type = 0b000001, 0b00
+			opcode, tp = 0b000001, 0b00
 		case FNEGD:
-			Opcode, Type = 0b000010, 0b01
+			opcode, tp = 0b000010, 0b01
 		case FNEGS:
-			Opcode, Type = 0b000010, 0b00
+			opcode, tp = 0b000010, 0b00
 		case FSQRTD:
-			Opcode, Type = 0b000011, 0b01
+			opcode, tp = 0b000011, 0b01
 		case FSQRTS:
-			Opcode, Type = 0b000011, 0b00
+			opcode, tp = 0b000011, 0b00
 		case FCVTSD:
-			Opcode, Type = 0b000101, 0b00
+			opcode, tp = 0b000101, 0b00
 		case FCVTDS:
-			Opcode, Type = 0b000100, 0b01
+			opcode, tp = 0b000100, 0b01
 		case FRINTMD:
-			Opcode, Type = 0b001010, 0b01
+			opcode, tp = 0b001010, 0b01
 		case FRINTMS:
-			Opcode, Type = 0b001010, 0b00
+			opcode, tp = 0b001010, 0b00
 		case FRINTND:
-			Opcode, Type = 0b001000, 0b01
+			opcode, tp = 0b001000, 0b01
 		case FRINTNS:
-			Opcode, Type = 0b001000, 0b00
+			opcode, tp = 0b001000, 0b00
 		case FRINTPD:
-			Opcode, Type = 0b001001, 0b01
+			opcode, tp = 0b001001, 0b01
 		case FRINTPS:
-			Opcode, Type = 0b001001, 0b00
+			opcode, tp = 0b001001, 0b00
 		case FRINTZD:
-			Opcode, Type = 0b001011, 0b01
+			opcode, tp = 0b001011, 0b01
 		case FRINTZS:
-			Opcode, Type = 0b001011, 0b00
+			opcode, tp = 0b001011, 0b00
 		}
 		a.Buf.Write([]byte{
 			(srcRegBits << 5) | dstRegBits,
-			(Opcode << 7) | 0b0_10000_00 | (srcRegBits >> 3),
-			Type<<6 | 0b00_1_00000 | Opcode>>1,
-			(S << 5) | 0b0_00_11110,
+			(opcode << 7) | 0b0_10000_00 | (srcRegBits >> 3),
+			tp<<6 | 0b00_1_00000 | opcode>>1,
+			0b0_00_11110,
 		})
 
-		// FADDD REG_FLOAT, REG_FLOAT
-		// FADDS REG_FLOAT, REG_FLOAT
-		// FCVTZSD REG_FLOAT, REG_INT
-		// FCVTZSDW REG_FLOAT, REG_INT
-		// FCVTZSS REG_FLOAT, REG_INT
-		// FCVTZSSW REG_FLOAT, REG_INT
-		// FCVTZUD REG_FLOAT, REG_INT
-		// FCVTZUDW REG_FLOAT, REG_INT
-		// FCVTZUS REG_FLOAT, REG_INT
-		// FCVTZUSW REG_FLOAT, REG_INT
-		// FDIVD REG_FLOAT, REG_FLOAT
-		// FDIVS REG_FLOAT, REG_FLOAT
-		// FMAXD REG_FLOAT, REG_FLOAT
-		// FMAXS REG_FLOAT, REG_FLOAT
-		// FMIND REG_FLOAT, REG_FLOAT
-		// FMINS REG_FLOAT, REG_FLOAT
+	case FADDD, FADDS, FDIVS, FDIVD, FMAXD, FMAXS, FMIND, FMINS, FMULS, FMULD:
+		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, false, false); err != nil {
+			return
+		}
+
+		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
+
+		// "Floating-point data-processing (2 source)" in
+		// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Data-Processing----Scalar-Floating-Point-and-Advanced-SIMD?lang=en#floatdp1
+		var tp, opcode byte
+		switch inst {
+		case FADDD:
+			opcode, tp = 0b0010, 0b01
+		case FADDS:
+			opcode, tp = 0b0010, 0b00
+		case FDIVD:
+			opcode, tp = 0b0001, 0b01
+		case FDIVS:
+			opcode, tp = 0b0001, 0b00
+		case FMAXD:
+			opcode, tp = 0b0100, 0b01
+		case FMAXS:
+			opcode, tp = 0b0100, 0b00
+		case FMIND:
+			opcode, tp = 0b0101, 0b01
+		case FMINS:
+			opcode, tp = 0b0101, 0b00
+		case FMULS:
+			opcode, tp = 0b0000, 0b00
+		case FMULD:
+			opcode, tp = 0b0000, 0b01
+		}
+
+		a.Buf.Write([]byte{
+			(dstRegBits << 5) | dstRegBits,
+			opcode<<4 | 0b0000_10_00 | (dstRegBits >> 3),
+			tp<<6 | 0b00_1_00000 | srcRegBits,
+			0b0001_1110,
+		})
+
+	case FCVTZSD, FCVTZSDW, FCVTZSS, FCVTZSSW, FCVTZUD, FCVTZUDW, FCVTZUS, FCVTZUSW:
+		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, false, true); err != nil {
+			return
+		}
+
+		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
+
+		// "Conversion between floating-point and integer" in
+		// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Data-Processing----Scalar-Floating-Point-and-Advanced-SIMD?lang=en#floatdp1
+		var sf, tp, opcode byte
+		switch inst {
+		case FCVTZSD: // Double to signed 64-bit
+			sf, tp, opcode = 0b1, 0b01, 0b000
+		case FCVTZSDW: // Double to signed 32-bit.
+			sf, tp, opcode = 0b0, 0b01, 0b000
+		case FCVTZSS: // Single to signed 64-bit.
+			sf, tp, opcode = 0b1, 0b00, 0b000
+		case FCVTZSSW: // Single to signed 32-bit.
+			sf, tp, opcode = 0b0, 0b00, 0b000
+		case FCVTZUD: // Dobule to unsigned 64-bit.
+			sf, tp, opcode = 0b1, 0b01, 0b001
+		case FCVTZUDW: // Double to unsigned 32-bit.
+			sf, tp, opcode = 0b0, 0b01, 0b001
+		case FCVTZUS: // Signle to unsigned 64-bit.
+			sf, tp, opcode = 0b1, 0b00, 0b001
+		case FCVTZUSW: // Signle to unsigned 32-bit.
+			sf, tp, opcode = 0b0, 0b00, 0b001
+		}
+
+		a.Buf.Write([]byte{
+			(srcRegBits << 5) | dstRegBits,
+			0 | (srcRegBits >> 3),
+			tp<<6 | 0b00_1_11_000 | opcode,
+			sf<<7 | 0b0_0_0_11110,
+		})
+
 		// FMOVD REG_FLOAT, REG_FLOAT
 		// FMOVD REG_FLOAT, REG_INT
 		// FMOVD REG_INT, REG_FLOAT
@@ -727,8 +787,6 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 		// FMOVS REG_FLOAT, REG_INT
 		// FMOVS REG_INT, REG_FLOAT
 		// FMOVS ZERO, REG_FLOAT
-		// FMULD REG_FLOAT, REG_FLOAT
-		// FMULS REG_FLOAT, REG_FLOAT
 		// MOVD REG_INT, REG_INT
 		// MOVD ZERO, REG_INT
 		// MOVW REG_INT, REG_INT

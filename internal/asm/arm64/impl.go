@@ -1090,42 +1090,113 @@ func (a *AssemblerImpl) EncodeLeftShiftedRegisterToRegister(n *NodeImpl) (err er
 	return
 }
 
-// encodeTwoRegistersToRegister:  AND (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  ANDW (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  ASR (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  ASRW (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  EOR (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  EOR (REG_INT, ZERO), REG_INT
-// encodeTwoRegistersToRegister:  EOR (ZERO, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  EOR (ZERO, ZERO), ZERO
-// encodeTwoRegistersToRegister:  EORW (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  EORW (REG_INT, ZERO), REG_INT
-// encodeTwoRegistersToRegister:  EORW (ZERO, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  EORW (ZERO, ZERO), ZERO
-// encodeTwoRegistersToRegister:  FSUBD (REG_FLOAT, REG_FLOAT), REG_FLOAT
-// encodeTwoRegistersToRegister:  FSUBS (REG_FLOAT, REG_FLOAT), REG_FLOAT
-// encodeTwoRegistersToRegister:  LSL (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  LSLW (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  LSR (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  LSRW (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  ORR (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  ORRW (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  ROR (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  RORW (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  SDIV (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  SDIV (REG_INT, ZERO), REG_INT
-// encodeTwoRegistersToRegister:  SDIVW (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  SDIVW (REG_INT, ZERO), REG_INT
-// encodeTwoRegistersToRegister:  SUB (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  SUB (REG_INT, ZERO), REG_INT
-// encodeTwoRegistersToRegister:  SUB (ZERO, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  SUBW (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  SUBW (REG_INT, ZERO), REG_INT
-// encodeTwoRegistersToRegister:  SUBW (ZERO, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  UDIV (REG_INT, REG_INT), REG_INT
-// encodeTwoRegistersToRegister:  UDIV (REG_INT, ZERO), REG_INT
-// encodeTwoRegistersToRegister:  UDIVW (REG_INT, REG_INT), REG_INT
 func (a *AssemblerImpl) EncodeTwoRegistersToRegister(n *NodeImpl) (err error) {
+	switch inst := n.Instruction; inst {
+	case AND, ANDW, ORR, ORRW, EOR, EORW:
+		srcRegBits, srcReg2Bits, dstRegBits := registerBits(n.SrcReg), registerBits(n.SrcReg2), registerBits(n.DstReg)
+		var sf, opc byte
+		switch inst {
+		case AND:
+			sf, opc = 0b1, 0b00
+		case ANDW:
+			sf, opc = 0b0, 0b00
+		case ORR:
+			sf, opc = 0b1, 0b01
+		case ORRW:
+			sf, opc = 0b0, 0b01
+		case EOR:
+			sf, opc = 0b1, 0b10
+		case EORW:
+			sf, opc = 0b0, 0b10
+		}
+		a.Buf.Write([]byte{
+			(srcReg2Bits << 5) | dstRegBits,
+			(srcReg2Bits >> 3),
+			srcRegBits,
+			sf<<7 | opc<<5 | 0b01010,
+		})
+	case ASR, ASRW, LSL, LSLW, LSR, LSRW, ROR, RORW:
+		srcRegBits, srcReg2Bits, dstRegBits := registerBits(n.SrcReg), registerBits(n.SrcReg2), registerBits(n.DstReg)
+
+		var sf, opcode byte
+		switch inst {
+		case ASR:
+			sf, opcode = 0b1, 0b001010
+		case ASRW:
+			sf, opcode = 0b0, 0b001010
+		case LSL:
+			sf, opcode = 0b1, 0b001000
+		case LSLW:
+			sf, opcode = 0b0, 0b001000
+		case LSR:
+			sf, opcode = 0b1, 0b001001
+		case LSRW:
+			sf, opcode = 0b0, 0b001001
+		case ROR:
+			sf, opcode = 0b1, 0b001011
+		case RORW:
+			sf, opcode = 0b0, 0b001011
+		}
+		a.Buf.Write([]byte{
+			(srcReg2Bits << 5) | dstRegBits,
+			opcode<<2 | (srcReg2Bits >> 3),
+			0b110_00000 | srcRegBits,
+			sf<<7 | 0b0_00_11010,
+		})
+
+	case SDIV, SDIVW, UDIV, UDIVW:
+		srcRegBits, srcReg2Bits, dstRegBits := registerBits(n.SrcReg), registerBits(n.SrcReg2), registerBits(n.DstReg)
+
+		// See "Data-processing (2 source)" in
+		// https://developer.arm.com/documentation/ddi0602/2021-06/Index-by-Encoding/Data-Processing----Register?lang=en
+		var sf, opcode byte
+		switch inst {
+		case SDIV:
+			sf, opcode = 0b1, 0b000011
+		case SDIVW:
+			sf, opcode = 0b0, 0b000011
+		case UDIV:
+			sf, opcode = 0b1, 0b000010
+		case UDIVW:
+			sf, opcode = 0b0, 0b000010
+		}
+
+		a.Buf.Write([]byte{
+			(srcReg2Bits << 5) | dstRegBits,
+			opcode<<2 | (srcReg2Bits >> 3),
+			0b110_00000 | srcRegBits,
+			sf<<7 | 0b0_00_11010,
+		})
+	case SUB, SUBW:
+		srcRegBits, srcReg2Bits, dstRegBits := registerBits(n.SrcReg), registerBits(n.SrcReg2), registerBits(n.DstReg)
+
+		var sf byte
+		if inst == SUB {
+			sf = 0b1
+		}
+
+		a.Buf.Write([]byte{
+			(srcReg2Bits << 5) | dstRegBits,
+			(srcReg2Bits >> 3),
+			srcRegBits,
+			sf<<7 | 0b0_10_01011,
+		})
+
+	case FSUBD, FSUBS:
+		srcRegBits, srcReg2Bits, dstRegBits := registerBits(n.SrcReg), registerBits(n.SrcReg2), registerBits(n.DstReg)
+		var tp byte
+		if inst == FSUBD {
+			tp = 0b01
+		}
+		a.Buf.Write([]byte{
+			(srcReg2Bits << 5) | dstRegBits,
+			0b0011_10_00 | (srcReg2Bits >> 3),
+			tp<<6 | 0b00_1_00000 | srcRegBits,
+			0b0_00_11110,
+		})
+	default:
+		return errorEncodingUnsupported(n)
+	}
 	return
 }
 

@@ -368,16 +368,23 @@ func TestAssemblerImpl_EncodeRegisterToRegister(t *testing.T) {
 		// {inst: asm_arm64.FMULD, srcRegs: floatRegs, dstRegs: floatRegs},
 		// {inst: asm_arm64.FADDD, srcRegs: floatRegs, dstRegs: floatRegs},
 		// {inst: asm_arm64.FADDS, srcRegs: floatRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.FCVTZSD, srcRegs: floatRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.FCVTZSDW, srcRegs: floatRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.FCVTZSS, srcRegs: floatRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.FCVTZSSW, srcRegs: floatRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.FCVTZUD, srcRegs: floatRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.FCVTZUDW, srcRegs: floatRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.FCVTZUS, srcRegs: floatRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.FCVTZUSW, srcRegs: floatRegs, dstRegs: intRegs},
 
-		{inst: asm_arm64.FCVTZSD, srcRegs: floatRegs, dstRegs: intRegs},
-		{inst: asm_arm64.FCVTZSDW, srcRegs: floatRegs, dstRegs: intRegs},
-		{inst: asm_arm64.FCVTZSS, srcRegs: floatRegs, dstRegs: intRegs},
-		{inst: asm_arm64.FCVTZSSW, srcRegs: floatRegs, dstRegs: intRegs},
-		{inst: asm_arm64.FCVTZUD, srcRegs: floatRegs, dstRegs: intRegs},
-		{inst: asm_arm64.FCVTZUDW, srcRegs: floatRegs, dstRegs: intRegs},
-		{inst: asm_arm64.FCVTZUS, srcRegs: floatRegs, dstRegs: intRegs},
-		{inst: asm_arm64.FCVTZUSW, srcRegs: floatRegs, dstRegs: intRegs},
+		{inst: asm_arm64.FMOVD, srcRegs: floatRegs, dstRegs: floatRegs},
+		{inst: asm_arm64.FMOVS, srcRegs: floatRegs, dstRegs: floatRegs},
+		{inst: asm_arm64.FMOVD, srcRegs: intRegs, dstRegs: floatRegs},
+		{inst: asm_arm64.FMOVS, srcRegs: intRegs, dstRegs: floatRegs},
+		{inst: asm_arm64.FMOVD, srcRegs: floatRegs, dstRegs: intRegs},
+		{inst: asm_arm64.FMOVS, srcRegs: floatRegs, dstRegs: intRegs},
 	} {
+
 		tc := tc
 		t.Run(asm_arm64.InstructionName(tc.inst), func(t *testing.T) {
 			for _, src := range tc.srcRegs {

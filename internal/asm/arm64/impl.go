@@ -2,6 +2,7 @@ package asm_arm64
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/tetratelabs/wazero/internal/asm"
@@ -780,13 +781,48 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 			sf<<7 | 0b0_0_0_11110,
 		})
 
-		// FMOVD REG_FLOAT, REG_FLOAT
-		// FMOVD REG_FLOAT, REG_INT
-		// FMOVD REG_INT, REG_FLOAT
-		// FMOVD ZERO, REG_FLOAT
-		// FMOVS REG_FLOAT, REG_INT
-		// FMOVS REG_INT, REG_FLOAT
-		// FMOVS ZERO, REG_FLOAT
+	case FMOVD, FMOVS:
+		isSrcInt, isDstInt := isIntRegister(n.SrcReg), isIntRegister(n.DstReg)
+		if isSrcInt && isDstInt {
+			return errors.New("FMOV needs at least one of operands to be integer")
+		}
+
+		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
+		if !isSrcInt && !isDstInt { // Float to float.
+			var tp byte
+			if inst == FMOVD {
+				tp = 0b01
+			}
+			a.Buf.Write([]byte{
+				(srcRegBits << 5) | dstRegBits,
+				0b0_10000_00 | (srcRegBits >> 3),
+				tp<<6 | 0b00_1_00000,
+				0b000_11110,
+			})
+		} else if isSrcInt && !isDstInt { // Int to float.
+			var tp, sf byte
+			if inst == FMOVD {
+				tp, sf = 0b01, 0b1
+			}
+			a.Buf.Write([]byte{
+				(srcRegBits << 5) | dstRegBits,
+				(srcRegBits >> 3),
+				tp<<6 | 0b00_1_00_111,
+				sf<<7 | 0b0_00_11110,
+			})
+		} else { // Float to int.
+			var tp, sf byte
+			if inst == FMOVD {
+				tp, sf = 0b01, 0b1
+			}
+			a.Buf.Write([]byte{
+				(srcRegBits << 5) | dstRegBits,
+				(srcRegBits >> 3),
+				tp<<6 | 0b00_1_00_110,
+				sf<<7 | 0b0_00_11110,
+			})
+		}
+
 		// MOVD REG_INT, REG_INT
 		// MOVD ZERO, REG_INT
 		// MOVW REG_INT, REG_INT

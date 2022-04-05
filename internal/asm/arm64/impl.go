@@ -835,9 +835,6 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 	case MOVD, MOVWU:
 		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, true, true); err != nil {
 			return
-		} else if n.DstReg == REGZERO {
-			err = errors.New("MOV requires non-zero register as destination")
-			return
 		}
 
 		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
@@ -947,6 +944,8 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 			return
 		}
 
+		// See "Data-processing (2 source)" in
+		// https://developer.arm.com/documentation/ddi0602/2021-06/Index-by-Encoding/Data-Processing----Register?lang=en
 		var sf, opcode byte
 		switch inst {
 		case SDIV:
@@ -966,36 +965,101 @@ func (a *AssemblerImpl) EncodeRegisterToRegister(n *NodeImpl) (err error) {
 			sf<<7 | 0b0_00_11010,
 		})
 
-		// SCVTFD REG_INT, REG_FLOAT
-		// SCVTFD ZERO, REG_FLOAT
-		// SCVTFS REG_INT, REG_FLOAT
-		// SCVTFS ZERO, REG_FLOAT
-		// SCVTFWD REG_INT, REG_FLOAT
-		// SCVTFWD ZERO, REG_FLOAT
-		// SCVTFWS REG_INT, REG_FLOAT
-		// SCVTFWS ZERO, REG_FLOAT
-		// SXTB REG_INT, REG_INT
-		// SXTB ZERO, ZERO
-		// SXTBW REG_INT, REG_INT
-		// SXTBW ZERO, ZERO
-		// SXTH REG_INT, REG_INT
-		// SXTH ZERO, ZERO
-		// SXTHW REG_INT, REG_INT
-		// SXTHW ZERO, ZERO
-		// SXTW REG_INT, REG_INT
-		// SXTW ZERO, ZERO
-		// UCVTFD REG_INT, REG_FLOAT
-		// UCVTFD ZERO, REG_FLOAT
-		// UCVTFS REG_INT, REG_FLOAT
-		// UCVTFS ZERO, REG_FLOAT
-		// UCVTFWD REG_INT, REG_FLOAT
-		// UCVTFWD ZERO, REG_FLOAT
-		// UCVTFWS REG_INT, REG_FLOAT
-		// UCVTFWS ZERO, REG_FLOAT
+	case SCVTFD, SCVTFWD, SCVTFS, SCVTFWS, UCVTFD, UCVTFS, UCVTFWD, UCVTFWS:
+		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
+
+		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, true, false); err != nil {
+			return
+		}
+
+		// "Conversion between floating-point and integer" in
+		// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Data-Processing----Scalar-Floating-Point-and-Advanced-SIMD?lang=en#floatdp1
+		var sf, tp, opcode byte
+		switch inst {
+		case SCVTFD: // 64-bit integer to double
+			sf, tp, opcode = 0b1, 0b01, 0b010
+		case SCVTFWD: // 32-bit integer to double
+			sf, tp, opcode = 0b0, 0b01, 0b010
+		case SCVTFS: // 64-bit integer to single
+			sf, tp, opcode = 0b1, 0b00, 0b010
+		case SCVTFWS: // 32-bit integer to single
+			sf, tp, opcode = 0b0, 0b00, 0b010
+		case UCVTFD: // 64-bit to double
+			sf, tp, opcode = 0b1, 0b01, 0b011
+		case UCVTFWD: // 32-bit to double
+			sf, tp, opcode = 0b0, 0b01, 0b011
+		case UCVTFS: // 64-bit to single
+			sf, tp, opcode = 0b1, 0b00, 0b011
+		case UCVTFWS: // 32-bit to single
+			sf, tp, opcode = 0b0, 0b00, 0b011
+		}
+
+		a.Buf.Write([]byte{
+			(srcRegBits << 5) | dstRegBits,
+			(srcRegBits >> 3),
+			tp<<6 | 0b00_1_00_000 | opcode,
+			sf<<7 | 0b0_0_0_11110,
+		})
+
+	case SXTB, SXTBW, SXTH, SXTHW, SXTW, UXTW:
+		if err = checkRegisterToRegisterType(n.SrcReg, n.DstReg, true, true); err != nil {
+			return
+		}
+
+		srcRegBits, dstRegBits := registerBits(n.SrcReg), registerBits(n.DstReg)
+		if n.SrcReg == REGZERO {
+			// If the source is zero register, we encode as MOV dst, zero.
+			var sf byte
+			if inst == MOVD {
+				sf = 0b1
+			}
+			a.Buf.Write([]byte{
+				(zeroRegisterBits << 5) | dstRegBits,
+				(zeroRegisterBits >> 3),
+				0b000_00000 | srcRegBits,
+				sf<<7 | 0b0_01_01010,
+			})
+			return
+		}
+
+		// SXTB is encoded as "SBFM Wd, Wn, #0, #7"
+		// https://developer.arm.com/documentation/dui0801/g/A64-General-Instructions/SXTB
+		// SXTH is encoded as "SBFM Wd, Wn, #0, #15"
+		// https://developer.arm.com/documentation/dui0801/g/A64-General-Instructions/SXTH
+		// SXTW is encoded as "SBFM Xd, Xn, #0, #31"
+		// https://developer.arm.com/documentation/dui0802/b/A64-General-Instructions/SXTW
+		// ubfx x30, x10, #0, #0x20
+
+		var n, sf, imms, opc byte
+		switch inst {
+		case SXTB:
+			n, sf, imms = 0b1, 0b1, 0x7
+		case SXTBW:
+			n, sf, imms = 0b0, 0b0, 0x7
+		case SXTH:
+			n, sf, imms = 0b1, 0b1, 0xf
+		case SXTHW:
+			n, sf, imms = 0b0, 0b0, 0xf
+		case SXTW:
+			n, sf, imms = 0b1, 0b1, 0x1f
+		case UXTW:
+			n, sf, imms, opc = 0b1, 0b1, 0x20, 0b10
+		}
+
+		a.Buf.Write([]byte{
+			(srcRegBits << 5) | dstRegBits,
+			imms<<2 | (srcRegBits >> 3),
+			n << 6,
+			sf<<7 | opc<<5 | 0b10011,
+		})
+
+		// exp: 01111100
+		// actual: 10000000
+
 		// UXTW REG_INT, REG_INT
 		// UXTW ZERO, ZERO
 	default:
-		// return errorEncodingUnsupported(n)
+		return errorEncodingUnsupported(n)
 	}
 	return
 }

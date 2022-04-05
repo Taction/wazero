@@ -312,7 +312,6 @@ func TestAssemblerImpl_EncodeThreeRegistersToRegister(t *testing.T) {
 
 func TestAssemblerImpl_EncodeRegisterToRegister(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
-		return
 		for _, tc := range []struct {
 			n      *asm_arm64.NodeImpl
 			expErr string
@@ -394,10 +393,24 @@ func TestAssemblerImpl_EncodeRegisterToRegister(t *testing.T) {
 		// {inst: asm_arm64.NEGW, srcRegs: intRegs, dstRegs: intRegs},
 		// {inst: asm_arm64.RBIT, srcRegs: intRegs, dstRegs: intRegs},
 		// {inst: asm_arm64.RBITW, srcRegs: intRegs, dstRegs: intRegs},
-		{inst: asm_arm64.SDIV, srcRegs: intRegs, dstRegs: intRegs},
-		{inst: asm_arm64.SDIVW, srcRegs: intRegs, dstRegs: intRegs},
-		{inst: asm_arm64.UDIV, srcRegs: intRegs, dstRegs: intRegs},
-		{inst: asm_arm64.UDIVW, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.SDIV, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.SDIVW, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.UDIV, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.UDIVW, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.SCVTFD, srcRegs: intRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.SCVTFWD, srcRegs: intRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.SCVTFS, srcRegs: intRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.SCVTFWS, srcRegs: intRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.UCVTFD, srcRegs: intRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.UCVTFWD, srcRegs: intRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.UCVTFS, srcRegs: intRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.UCVTFWS, srcRegs: intRegs, dstRegs: floatRegs},
+		// {inst: asm_arm64.SXTB, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.SXTBW, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.SXTH, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.SXTHW, srcRegs: intRegs, dstRegs: intRegs},
+		// {inst: asm_arm64.SXTW, srcRegs: intRegs, dstRegs: intRegs},
+		{inst: asm_arm64.UXTW, srcRegs: intRegs, dstRegs: intRegs},
 	} {
 
 		tc := tc

@@ -1296,8 +1296,25 @@ func (a *AssemblerImpl) EncodeTwoRegistersToNone(n *NodeImpl) (err error) {
 	return
 }
 
-// encodeRegisterAndConstToNone:  CMP (REG_INT, IMMEDIATE)
 func (a *AssemblerImpl) EncodeRegisterAndConstToNone(n *NodeImpl) (err error) {
+	// https://developer.arm.com/documentation/ddi0596/2021-12/Base-Instructions/CMP--immediate---Compare--immediate---an-alias-of-SUBS--immediate--?lang=en
+	if n.SrcConst < 0 || n.SrcConst > 4095 {
+		return fmt.Errorf("immediate for CMP must fit in 0 to 4095 but got %d", n.SrcConst)
+	} else if n.SrcReg == REGZERO {
+		return errors.New("ZERO register is not supported for CMP (immediate)")
+	}
+
+	srcRegBits, err := intRegisterBits(n.SrcReg)
+	if err != nil {
+		return err
+	}
+
+	a.Buf.Write([]byte{
+		(srcRegBits << 5) | zeroRegisterBits,
+		(byte(n.SrcConst) << 2) | (srcRegBits >> 3),
+		byte(n.SrcConst >> 6),
+		0b111_10001,
+	})
 	return
 }
 

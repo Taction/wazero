@@ -516,6 +516,32 @@ func TestAssemblerImpl_EncodeTwoRegistersToRegister(t *testing.T) {
 	}
 }
 
+func TestAssemblerImpl_EncodeRegisterAndConstToNone(t *testing.T) {
+	const inst = asm_arm64.CMP
+	for _, reg := range []asm.Register{asm_arm64.REG_R1, asm_arm64.REG_R10, asm_arm64.REG_R30} {
+		for _, c := range []int64{0, 10, 100, 300, 4095} {
+			reg, c := reg, c
+			t.Run(fmt.Sprintf("%s, %d", asm_arm64.RegisterName(reg), c), func(t *testing.T) {
+				goasm := newGoasmAssembler(t, asm.NilRegister)
+				goasm.CompileRegisterAndConstToNone(inst, reg, c)
+				expected, err := goasm.Assemble()
+				require.NoError(t, err)
+				if c == 0 {
+					// This case cannot be supported in golang-asm and it results in miscompilation.
+					expected[3] = 0b111_10001
+				}
+
+				a := asm_arm64.NewAssemblerImpl(asm.NilRegister)
+				err = a.EncodeRegisterAndConstToNone(&asm_arm64.NodeImpl{Instruction: inst, SrcReg: reg, SrcConst: c})
+				require.NoError(t, err)
+
+				actual := a.Bytes()
+				require.Equal(t, expected, actual)
+			})
+		}
+	}
+}
+
 func conditionalRegisterToState(r asm.Register) asm.ConditionalRegisterState {
 	switch r {
 	case asm_arm64.REG_COND_EQ:

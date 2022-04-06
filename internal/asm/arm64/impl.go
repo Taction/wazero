@@ -214,7 +214,7 @@ type AssemblerImpl struct {
 var _ Assembler = &AssemblerImpl{}
 
 func NewAssemblerImpl(temporaryRegister asm.Register) *AssemblerImpl {
-	return &AssemblerImpl{Buf: bytes.NewBuffer(nil)}
+	return &AssemblerImpl{Buf: bytes.NewBuffer(nil), temporaryRegister: temporaryRegister}
 }
 
 // newNode creates a new Node and appends it into the linked list.
@@ -1297,11 +1297,15 @@ func (a *AssemblerImpl) EncodeTwoRegistersToNone(n *NodeImpl) (err error) {
 }
 
 func (a *AssemblerImpl) EncodeRegisterAndConstToNone(n *NodeImpl) (err error) {
+	if n.Instruction != CMP {
+		return errorEncodingUnsupported(n)
+	}
+
 	// https://developer.arm.com/documentation/ddi0596/2021-12/Base-Instructions/CMP--immediate---Compare--immediate---an-alias-of-SUBS--immediate--?lang=en
 	if n.SrcConst < 0 || n.SrcConst > 4095 {
 		return fmt.Errorf("immediate for CMP must fit in 0 to 4095 but got %d", n.SrcConst)
 	} else if n.SrcReg == REGZERO {
-		return errors.New("ZERO register is not supported for CMP (immediate)")
+		return errors.New("zero register is not supported for CMP (immediate)")
 	}
 
 	srcRegBits, err := intRegisterBits(n.SrcReg)
@@ -1358,6 +1362,130 @@ func (a *AssemblerImpl) EncodeMemoryToRegister(n *NodeImpl) (err error) {
 	return
 }
 
+func const16bitAligned(v int64) int {
+	for s := 0; s < 64; s += 16 {
+		if (uint64(v) &^ (uint64(0xFFFF) << uint(s))) == 0 {
+			return s / 16
+		}
+	}
+	return -1
+}
+
+// isbitcon determins if the value can be encoded as "bitmask immediate".
+func isbitcon(x uint64) bool {
+	if x == 1<<64-1 || x == 0 {
+		return false
+	}
+	// determine the period and sign-extend a unit to 64 bits
+	switch {
+	case x != x>>32|x<<32:
+		// period is 64
+		// nothing to do
+	case x != x>>16|x<<48:
+		// period is 32
+		x = uint64(int64(int32(x)))
+	case x != x>>8|x<<56:
+		// period is 16
+		x = uint64(int64(int16(x)))
+	case x != x>>4|x<<60:
+		// period is 8
+		x = uint64(int64(int8(x)))
+	default:
+		// period is 4 or 2, always true
+		// 0001, 0010, 0100, 1000 -- 0001 rotate
+		// 0011, 0110, 1100, 1001 -- 0011 rotate
+		// 0111, 1011, 1101, 1110 -- 0111 rotate
+		// 0101, 1010             -- 01   rotate, repeat
+		return true
+	}
+	return sequenceOfOnes(x) || sequenceOfOnes(^x)
+}
+
+// sequenceOfOnes tests whether a constant is a sequence of ones in binary, with leading and trailing zeros
+func sequenceOfOnes(x uint64) bool {
+	y := x & -x // lowest set bit of x. x is good iff x+y is a power of 2
+	y += x
+	return (y-1)&y == 0
+}
+
+func bitconEncode(x uint64, mode int) uint32 {
+	var period uint32
+	// determine the period and sign-extend a unit to 64 bits
+	switch {
+	case x != x>>32|x<<32:
+		period = 64
+	case x != x>>16|x<<48:
+		period = 32
+		x = uint64(int64(int32(x)))
+	case x != x>>8|x<<56:
+		period = 16
+		x = uint64(int64(int16(x)))
+	case x != x>>4|x<<60:
+		period = 8
+		x = uint64(int64(int8(x)))
+	case x != x>>2|x<<62:
+		period = 4
+		x = uint64(int64(x<<60) >> 60)
+	default:
+		period = 2
+		x = uint64(int64(x<<62) >> 62)
+	}
+	neg := false
+	if int64(x) < 0 {
+		x = ^x
+		neg = true
+	}
+	y := x & -x // lowest set bit of x.
+	s := log2(y)
+	n := log2(x+y) - s // x (or ^x) is a sequence of n ones left shifted by s bits
+	if neg {
+		// ^x is a sequence of n ones left shifted by s bits
+		// adjust n, s for x
+		s = n + s
+		n = period - n
+	}
+
+	N := uint32(0)
+	if mode == 64 && period == 64 {
+		N = 1
+	}
+	R := (period - s) & (period - 1) & uint32(mode-1) // shift amount of right rotate
+	S := (n - 1) | 63&^(period<<1-1)                  // low bits = #ones - 1, high bits encodes period
+	return N<<22 | R<<16 | S<<10
+}
+
+func log2(x uint64) uint32 {
+	if x == 0 {
+		panic("log2 of 0")
+	}
+	n := uint32(0)
+	if x >= 1<<32 {
+		x >>= 32
+		n += 32
+	}
+	if x >= 1<<16 {
+		x >>= 16
+		n += 16
+	}
+	if x >= 1<<8 {
+		x >>= 8
+		n += 8
+	}
+	if x >= 1<<4 {
+		x >>= 4
+		n += 4
+	}
+	if x >= 1<<2 {
+		x >>= 2
+		n += 2
+	}
+	if x >= 1<<1 {
+		x >>= 1
+		n += 1
+	}
+	return n
+}
+
 // encodeConstToRegister:  ADD IMMEDIATE, REG_INT
 // encodeConstToRegister:  LSR IMMEDIATE, REG_INT
 // encodeConstToRegister:  MOVD IMMEDIATE, REG_INT
@@ -1365,6 +1493,155 @@ func (a *AssemblerImpl) EncodeMemoryToRegister(n *NodeImpl) (err error) {
 // encodeConstToRegister:  SUB IMMEDIATE, REG_INT
 // encodeConstToRegister:  SUBS IMMEDIATE, REG_INT
 func (a *AssemblerImpl) EncodeConstToRegister(n *NodeImpl) (err error) {
+	// Alias for readability.
+	c := n.SrcConst
+
+	dstRegBits, err := intRegisterBits(n.DstReg)
+	if err != nil {
+		return err
+	}
+
+	switch inst := n.Instruction; inst {
+	case ADD:
+		if c == 0 {
+			// If the constant equals zero, we encode it as ADD (register) with zero register.
+			a.Buf.Write([]byte{
+				(dstRegBits << 5) | dstRegBits,
+				(dstRegBits >> 3),
+				zeroRegisterBits,
+				0b100_01011,
+			})
+			return
+		}
+
+		if c >= 0 && (c <= 0xfff || (c&0xfff) == 0 && (uint64(c>>12) <= 0xfff)) {
+			// 1) If the const can be represented as "imm12" or "imm12 << 12": one instruction
+			// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3035-L3052
+
+			if c <= 0xfff {
+				a.Buf.Write([]byte{
+					(dstRegBits << 5) | dstRegBits,
+					(byte(c) << 2) | (dstRegBits >> 3),
+					byte(c >> 6),
+					0b100_10001,
+				})
+			} else {
+				c >>= 12
+				a.Buf.Write([]byte{
+					(dstRegBits << 5) | dstRegBits,
+					(byte(c) << 2) | (dstRegBits >> 3),
+					0b01<<6 /* instruct we shift by 12 */ | byte(c>>6),
+					0b100_10001,
+				})
+			}
+
+			return
+		}
+
+		if t := const16bitAligned(c); t >= 0 {
+			// 2) If the const can fit within 16-bit alignment, for example, 0xffff, 0xffff_0000 or 0xffff_0000_0000_0000
+			// We could load it into temporary with movk.
+			// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
+			tmpRegBits := registerBits(a.temporaryRegister)
+
+			// MOVZ $c, tmpReg with shifting.
+			c = c >> (16 * t)
+			a.Buf.Write([]byte{
+				(byte(c) << 5) | tmpRegBits,
+				byte(c >> 3),
+				1<<7 | (byte(t) << 5) | byte(c>>11),
+				0b110_10010,
+			})
+
+			// ADD tmpReg, dstReg
+			a.Buf.Write([]byte{
+				(dstRegBits << 5) | dstRegBits,
+				(dstRegBits >> 3),
+				tmpRegBits,
+				0b100_01011,
+			})
+			return
+		} else if t := const16bitAligned(^c); t >= 0 {
+			// 3) Also if the reverse of the const can fit within 16-bit range, do the same ^^.
+			// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
+			tmpRegBits := registerBits(a.temporaryRegister)
+
+			// MOVN $c, tmpReg with shifting.
+			c = (^c >> (16 * t))
+			a.Buf.Write([]byte{
+				(byte(c) << 5) | tmpRegBits,
+				byte(c >> 3),
+				1<<7 | (byte(t) << 5) | byte(c>>11),
+				0b100_10010,
+			})
+
+			// ADD tmpReg, dstReg
+			a.Buf.Write([]byte{
+				(dstRegBits << 5) | dstRegBits,
+				(dstRegBits >> 3),
+				tmpRegBits,
+				0b100_01011,
+			})
+			return
+		}
+
+		if uc := uint64(c); isbitcon(uc) {
+			// 4) If the const can be represented as "bitmask immediate",
+			// we load it via ORR into temp register.
+			// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L6719-L6733
+			tmpRegBits := registerBits(a.temporaryRegister)
+			encoded := bitconEncode(uc, 64)
+
+			// OOR $c, tmpReg
+			a.Buf.Write([]byte{
+				(zeroRegisterBits << 5) | tmpRegBits,
+				byte(encoded>>8) | (zeroRegisterBits >> 3),
+				byte(encoded >> 16),
+				0b101_10010,
+			})
+
+			// ADD tmpReg, dstReg
+			a.Buf.Write([]byte{
+				(dstRegBits << 5) | dstRegBits,
+				(dstRegBits >> 3),
+				tmpRegBits,
+				0b100_01011,
+			})
+			return
+		}
+
+		// If the value fits within 24-bit, then we emit two add instructions
+		if c <= 0xffffff {
+			// 5) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3901-L3914
+
+			a.Buf.Write([]byte{
+				(dstRegBits << 5) | dstRegBits,
+				(byte(c) << 2) | (dstRegBits >> 3),
+				byte(c >> 6),
+				0b100_10001,
+			})
+			c = c >> 12
+			a.Buf.Write([]byte{
+				(dstRegBits << 5) | dstRegBits,
+				(byte(c) << 2) | (dstRegBits >> 3),
+				0b01_000000 /* shift by 12 */ | byte(c>>6),
+				0b100_10001,
+			})
+			return
+		}
+
+		// 6) Otherwise,
+		// Following the criteria: https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L1702-L1721
+		// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3215-L3256
+
+	case LSR:
+	case MOVW:
+	case MOVD:
+	case SUB:
+	case SUBS:
+	default:
+		return errorEncodingUnsupported(n)
+	}
 	return
 }
 

@@ -1,6 +1,7 @@
 package arm64debug
 
 import (
+	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -517,6 +518,33 @@ func TestAssemblerImpl_EncodeTwoRegistersToRegister(t *testing.T) {
 }
 
 func TestAssemblerImpl_EncodeRegisterAndConstToNone(t *testing.T) {
+	t.Run("error", func(t *testing.T) {
+		for _, tc := range []struct {
+			n      *asm_arm64.NodeImpl
+			expErr string
+		}{
+			{
+				n: &asm_arm64.NodeImpl{Instruction: asm_arm64.ADR, Types: asm_arm64.OperandTypesRegisterAndConstToNone,
+					SrcReg: asm_arm64.REG_R0, SrcReg2: asm_arm64.REG_R0, DstReg: asm_arm64.REG_R0},
+				expErr: "ADR is unsupported for from:register-and-const,to:none type",
+			},
+			{
+				n: &asm_arm64.NodeImpl{Instruction: asm_arm64.CMP, Types: asm_arm64.OperandTypesRegisterAndConstToNone,
+					SrcReg: asm_arm64.REG_R0, SrcConst: 12345},
+				expErr: "immediate for CMP must fit in 0 to 4095 but got 12345",
+			},
+			{
+				n: &asm_arm64.NodeImpl{Instruction: asm_arm64.CMP, Types: asm_arm64.OperandTypesRegisterAndConstToNone,
+					SrcReg: asm_arm64.REGZERO, SrcConst: 123},
+				expErr: "zero register is not supported for CMP (immediate)",
+			},
+		} {
+			a := asm_arm64.NewAssemblerImpl(asm.NilRegister)
+			err := a.EncodeRegisterAndConstToNone(tc.n)
+			require.EqualError(t, err, tc.expErr)
+		}
+	})
+
 	const inst = asm_arm64.CMP
 	for _, reg := range []asm.Register{asm_arm64.REG_R1, asm_arm64.REG_R10, asm_arm64.REG_R30} {
 		for _, c := range []int64{0, 10, 100, 300, 4095} {
@@ -539,6 +567,99 @@ func TestAssemblerImpl_EncodeRegisterAndConstToNone(t *testing.T) {
 				require.Equal(t, expected, actual)
 			})
 		}
+	}
+}
+
+func TestAssemblerImpl_EncodeConstToRegister(t *testing.T) {
+	var a uint64 = 0xffff_0000_0000_ffff
+	fmt.Printf("%d", int64(a))
+	t.Run("error", func(t *testing.T) {
+		for _, tc := range []struct {
+			n      *asm_arm64.NodeImpl
+			expErr string
+		}{
+			{
+				n: &asm_arm64.NodeImpl{Instruction: asm_arm64.ADR, Types: asm_arm64.OperandTypesConstToRegister,
+					SrcReg: asm_arm64.REG_R0, SrcReg2: asm_arm64.REG_R0, DstReg: asm_arm64.REG_R0},
+				expErr: "ADR is unsupported for from:const,to:register type",
+			},
+		} {
+			a := asm_arm64.NewAssemblerImpl(asm.NilRegister)
+			err := a.EncodeConstToRegister(tc.n)
+			require.EqualError(t, err, tc.expErr)
+		}
+	})
+
+	consts32bits := []int64{
+		// 1) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3035-L3052
+		// 0x1,
+		// 0xfff,
+		// 0xfff << 12,
+		// 123 << 12,
+
+		// 2) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
+		// (1<<15 + 1),
+		// (1<<15 + 1) << 16,
+		// (1<<15 + 1) << 32,
+
+		// 3) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
+		// 0x0000_ffff_ffff_ffff,
+		// -281470681743361, /* = 0xffff_0000_ffff_ffff */
+
+		// 4) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L6719-L6733
+		// math.MinInt32 + 1,
+		// -281474976645121,
+
+		// 5) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3901-L3914
+		1<<20 + 1,
+		1<<20 - 1,
+		1<<23 | 0b01,
+
+		// 6) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3215-L3256
+		// movz x27, #0x1
+		// movk x27, #0x4000, lsl #16
+		// add  x30, x30, x27
+		// 1<<30+1,
+		//
+
+	}
+	for _, tc := range []struct {
+		inst   asm.Instruction
+		consts []int64
+	}{
+		{inst: asm_arm64.ADD, consts: consts32bits},
+	} {
+		tc := tc
+		t.Run(asm_arm64.InstructionName(tc.inst), func(t *testing.T) {
+			for _, r := range []asm.Register{
+				// asm_arm64.REG_R0, asm_arm64.REG_R10,
+				asm_arm64.REG_R30,
+			} {
+				r := r
+				t.Run(asm_arm64.RegisterName(r), func(t *testing.T) {
+					for _, c := range tc.consts {
+						c := c
+						t.Run(fmt.Sprintf("0x%x", uint64(c)), func(t *testing.T) {
+							goasm := newGoasmAssembler(t, asm_arm64.REG_R27)
+							goasm.CompileConstToRegister(tc.inst, c, r)
+							expected, err := goasm.Assemble()
+							require.NoError(t, err)
+
+							a := asm_arm64.NewAssemblerImpl(asm_arm64.REG_R27)
+							err = a.EncodeConstToRegister(&asm_arm64.NodeImpl{Instruction: tc.inst, SrcConst: c, DstReg: r})
+							require.NoError(t, err)
+
+							fmt.Println(hex.EncodeToString(expected))
+
+							actual := a.Bytes()
+							fmt.Println(hex.EncodeToString(actual))
+							require.Equal(t, expected, actual)
+
+						})
+					}
+				})
+			}
+		})
 	}
 }
 

@@ -1626,13 +1626,17 @@ func (a *AssemblerImpl) EncodeConstToRegister(n *NodeImpl) (err error) {
 			return
 		}
 
+		// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L1651
 		c32 := uint32(c)
-		uc := uint64(c32)
-		if (c >= 0 && (c <= 0xfff || (c&0xfff) == 0 && (uint64(c>>12) <= 0xfff))) && // This condition is not necessary for MOVW, but in order to line with golang-asm we have here.
-			isbitcon(uc) {
-			a.loadBitcon(uc, dstRegBits, false, 32)
-			return
-		} else if t := const16bitAligned(c); t >= 0 {
+		ic := int64(c32)
+		if ic >= 0 && (ic <= 0xfff || (ic&0xfff) == 0 && (uint64(ic>>12) <= 0xfff)) {
+			if isbitcon(uint64(c)) {
+				a.loadBitcon(uint64(c), dstRegBits, false, 32)
+				return
+			}
+		}
+
+		if t := const16bitAligned(c); t >= 0 {
 			// If the const can fit within 16-bit alignment, for example, 0xffff, 0xffff_0000 or 0xffff_0000_0000_0000
 			// We could load it into temporary with movk.
 			// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
@@ -1642,6 +1646,9 @@ func (a *AssemblerImpl) EncodeConstToRegister(n *NodeImpl) (err error) {
 			// Also if the reverse of the const can fit within 16-bit range, do the same ^^.
 			// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
 			a.load16bitAlignedConst((int64(^c32) >> (16 * t)), byte(t), dstRegBits, true, false)
+			return
+		} else if isbitcon(uint64(c)) {
+			a.loadBitcon(uint64(c), dstRegBits, false, 32)
 			return
 		} else {
 			// Othewise we use MOVZ and MOVN

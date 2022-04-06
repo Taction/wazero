@@ -1611,10 +1611,8 @@ func (a *AssemblerImpl) EncodeConstToRegister(n *NodeImpl) (err error) {
 		}
 
 		// 6) Otherwise,
-		// Following the criteria: https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L1702-L1721
 		// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3215-L3256
-
-	case LSR:
+		panic("TODO")
 	case MOVW:
 		if c == 0 {
 			a.Buf.Write([]byte{
@@ -1660,16 +1658,75 @@ func (a *AssemblerImpl) EncodeConstToRegister(n *NodeImpl) (err error) {
 				0b0_10_10010,
 			})
 			c16 = uint16(c32 >> 16)
-			if c32 != 0 {
+			if c16 != 0 {
 				a.Buf.Write([]byte{
 					(byte(c16) << 5) | dstRegBits,
 					byte(c16 >> 3),
-					1<<7 | 0b0_01_00000 /* shift by 12 */ | byte(c16>>11),
+					1<<7 | 0b0_01_00000 /* shift by 16 */ | byte(c16>>11),
 					0b0_11_10010,
 				})
 			}
 		}
 	case MOVD:
+		if c >= 0 && (c <= 0xfff || (c&0xfff) == 0 && (uint64(c>>12) <= 0xfff)) {
+			if isbitcon(uint64(c)) {
+				a.loadBitcon(uint64(c), dstRegBits, true, 64)
+				return
+			}
+		}
+
+		if t := const16bitAligned(c); t >= 0 {
+			// If the const can fit within 16-bit alignment, for example, 0xffff, 0xffff_0000 or 0xffff_0000_0000_0000
+			// We could load it into temporary with movk.
+			// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
+			a.load16bitAlignedConst(c>>(16*t), byte(t), dstRegBits, false, true)
+			return
+		} else if t := const16bitAligned(int64(^c)); t >= 0 {
+			// Also if the reverse of the const can fit within 16-bit range, do the same ^^.
+			// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
+			a.load16bitAlignedConst((int64(^c) >> (16 * t)), byte(t), dstRegBits, true, true)
+			return
+		} else if isbitcon(uint64(c)) {
+			a.loadBitcon(uint64(c), dstRegBits, true, 64)
+			return
+		} else {
+			// Othewise we use MOVZ and MOVN
+			c16 := uint16(c)
+			a.Buf.Write([]byte{
+				(byte(c16) << 5) | dstRegBits,
+				byte(c16 >> 3),
+				1<<7 | byte(c16>>11),
+				0b1_10_10010,
+			})
+			c16 = uint16(c >> 16)
+			if c16 != 0 {
+				a.Buf.Write([]byte{
+					(byte(c16) << 5) | dstRegBits,
+					byte(c16 >> 3),
+					1<<7 | 0b0_01_00000 /* shift by 16 */ | byte(c16>>11),
+					0b1_11_10010,
+				})
+			}
+			c16 = uint16(c >> 32)
+			if c16 != 0 {
+				a.Buf.Write([]byte{
+					(byte(c16) << 5) | dstRegBits,
+					byte(c16 >> 3),
+					1<<7 | 0b0_10_00000 /* shift by 32 */ | byte(c16>>11),
+					0b1_11_10010,
+				})
+			}
+			c16 = uint16(c >> 48)
+			if c16 != 0 {
+				a.Buf.Write([]byte{
+					(byte(c16) << 5) | dstRegBits,
+					byte(c16 >> 3),
+					1<<7 | 0b0_11_00000 /* shift by 48 */ | byte(c16>>11),
+					0b1_11_10010,
+				})
+			}
+		}
+	case LSR:
 	case SUB:
 	case SUBS:
 	default:

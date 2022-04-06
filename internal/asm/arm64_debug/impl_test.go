@@ -593,43 +593,77 @@ func TestAssemblerImpl_EncodeConstToRegister(t *testing.T) {
 		inst   asm.Instruction
 		consts []int64
 	}{
+		// {
+		// 	inst: asm_arm64.ADD,
+		// 	consts: []int64{
+		// 		// 1) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3035-L3052
+		// 		0x1,
+		// 		0xfff,
+		// 		0xfff << 12,
+		// 		123 << 12,
+
+		// 		// 2) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
+		(1<<15 + 1),
+		(1<<15 + 1) << 16,
+		(1<<15 + 1) << 32,
+
+		// 		// 3) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
+		// 		0x0000_ffff_ffff_ffff,
+		// 		-281470681743361, /* = 0xffff_0000_ffff_ffff */
+
+		// 		// 4) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L6719-L6733
+		// 		math.MinInt32 + 1,
+		// 		-281474976645121, /* = 0xffff_0000_0000_ffff */
+
+		// 		// 5) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3901-L3914
+		// 		1<<20 + 1,
+		// 		1<<20 - 1,
+		// 		1<<23 | 0b01,
+
+		// 		// 6) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3215-L3256
+		// 		// TODO:
+		// 		// movz x27, #0x1‰
+		// 		// movk x27, #0x4000, lsl #16
+		// 		// add  x30, x30, x27
+		// 		// 1<<30 + 1,
+		// 	},
+		// },
+		// {
+		// 	inst: asm_arm64.MOVW,
+		// 	consts: []int64{
+		// 		1 << 1, 1<<1 + 1, 1<<1 - 1, 1<<1 + 0xf,
+		// 		1 << 2, 1<<2 + 1, 1<<2 - 1, 1<<2 + 0xf,
+		// 		1 << 3, 1<<3 + 1, 1<<3 - 1, 1<<3 + 0xf,
+		// 		1 << 4, 1<<4 + 1, 1<<4 - 1, 1<<4 + 0xf,
+		// 		1 << 5, 1<<5 + 1, 1<<5 - 1, 1<<5 + 0xf,
+		// 		1 << 6, 1<<6 + 1, 1<<6 - 1, 1<<6 + 0xf,
+		// 		0xfff << 1, 0xfff<<1 - 1, 0xfff<<1 + 1,
+		// 		0, 1, -1, 2, 3, 10, -10, 123, -123,
+		// 		math.MaxInt16, math.MaxInt32, math.MaxUint32, 0b01000000_00000010, 0xffff_0000, 0xffff_0001, 0xf00_000f,
+		// 		math.MaxInt16 - 1, math.MaxInt32 - 1, math.MaxUint32 - 1, 0b01000000_00000010 - 1, 0xffff_0000 - 1, 0xffff_0001 - 1, 0xf00_000f - 1,
+		// 		math.MaxInt16 + 1, 0b01000000_00001010 - 1, 0xfff_0000 - 1, 0xffe_0001 - 1, 0xe00_000f - 1,
+		// 		(1<<15 + 1) << 16, 0b1_00000000_00000010,
+		// 	},
+		// },
+		// {
+		// 	inst: asm_arm64.MOVW,
+		// 	consts: []int64{
+		// 		1 << 1, 1<<1 + 1, 1<<1 - 1, 1<<1 + 0xf,
+		// 		1 << 2, 1<<2 + 1, 1<<2 - 1, 1<<2 + 0xf,
+		// 		1 << 3, 1<<3 + 1, 1<<3 - 1, 1<<3 + 0xf,
+		// 		1 << 4, 1<<4 + 1, 1<<4 - 1, 1<<4 + 0xf,
+		// 		1 << 5, 1<<5 + 1, 1<<5 - 1, 1<<5 + 0xf,
+		// 		1 << 6, 1<<6 + 1, 1<<6 - 1, 1<<6 + 0xf,
+		// 		0xfff << 1, 0xfff<<1 - 1, 0xfff<<1 + 1,
+		// 		0, 1, -1, 2, 3, 10, -10, 123, -123,
+		// 		math.MaxInt16, math.MaxInt32, math.MaxUint32, 0b01000000_00000010, 0xffff_0000, 0xffff_0001, 0xf00_000f,
+		// 		math.MaxInt16 - 1, math.MaxInt32 - 1, math.MaxUint32 - 1, 0b01000000_00000010 - 1, 0xffff_0000 - 1, 0xffff_0001 - 1, 0xf00_000f - 1,
+		// 		math.MaxInt16 + 1, 0b01000000_00001010 - 1, 0xfff_0000 - 1, 0xffe_0001 - 1, 0xe00_000f - 1,
+		// 		(1<<15 + 1) << 16, 0b1_00000000_00000010,
+		// 	},
+		// },
 		{
-			inst: asm_arm64.ADD,
-			consts: []int64{
-				// 1) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3035-L3052
-				0x1,
-				0xfff,
-				0xfff << 12,
-				123 << 12,
-
-				// 2) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
-				(1<<15 + 1),
-				(1<<15 + 1) << 16,
-				(1<<15 + 1) << 32,
-
-				// 3) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
-				0x0000_ffff_ffff_ffff,
-				-281470681743361, /* = 0xffff_0000_ffff_ffff */
-
-				// 4) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L6719-L6733
-				math.MinInt32 + 1,
-				-281474976645121, /* = 0xffff_0000_0000_ffff */
-
-				// 5) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3901-L3914
-				1<<20 + 1,
-				1<<20 - 1,
-				1<<23 | 0b01,
-
-				// 6) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3215-L3256
-				// TODO:
-				// movz x27, #0x1‰
-				// movk x27, #0x4000, lsl #16
-				// add  x30, x30, x27
-				// 1<<30 + 1,
-			},
-		},
-		{
-			inst: asm_arm64.MOVW,
+			inst: asm_arm64.MOVD,
 			consts: []int64{
 				1 << 1, 1<<1 + 1, 1<<1 - 1, 1<<1 + 0xf,
 				1 << 2, 1<<2 + 1, 1<<2 - 1, 1<<2 + 0xf,
@@ -641,15 +675,25 @@ func TestAssemblerImpl_EncodeConstToRegister(t *testing.T) {
 				0, 1, -1, 2, 3, 10, -10, 123, -123,
 				math.MaxInt16, math.MaxInt32, math.MaxUint32, 0b01000000_00000010, 0xffff_0000, 0xffff_0001, 0xf00_000f,
 				math.MaxInt16 - 1, math.MaxInt32 - 1, math.MaxUint32 - 1, 0b01000000_00000010 - 1, 0xffff_0000 - 1, 0xffff_0001 - 1, 0xf00_000f - 1,
-				math.MaxInt16 + 1, 0b01000000_00001010 - 1, 0xfff_0000 - 1, 0xffe_0001 - 1, 0xe00_000f - 1,
-				(1<<15 + 1) << 16, 0b1_00000000_00000010,
+				math.MaxInt16 + 1, 0b01000000_00001010 - 1,
+				0xfff_0000 - 1,
+				0xffe_0001 - 1,
+				0xe00_000f - 1,
+				(1<<15 + 1) << 16,
+				0b1_00000000_00000010,
+				1 << 32, 1 << 34, 1 << 40,
+				1<<32 + 1, 1<<34 + 1, 1<<40 + 1,
+				1<<32 - 1, 1<<34 - 1, 1<<40 - 1,
+				1<<32 + 0xf, 1<<34 + 0xf, 1<<40 + 0xf,
+				1<<32 - 0xf, 1<<34 - 0xf, 1<<40 - 0xf,
+				math.MaxInt64, math.MinInt64,
 			},
 		},
 	} {
 		tc := tc
 		t.Run(asm_arm64.InstructionName(tc.inst), func(t *testing.T) {
 			for _, r := range []asm.Register{
-				asm_arm64.REG_R0, asm_arm64.REG_R10,
+				// asm_arm64.REG_R0, asm_arm64.REG_R10,
 				asm_arm64.REG_R30,
 			} {
 				r := r

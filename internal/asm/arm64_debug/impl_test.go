@@ -3,6 +3,7 @@ package arm64debug
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -571,8 +572,6 @@ func TestAssemblerImpl_EncodeRegisterAndConstToNone(t *testing.T) {
 }
 
 func TestAssemblerImpl_EncodeConstToRegister(t *testing.T) {
-	var a uint64 = 0xffff_0000_0000_ffff
-	fmt.Printf("%d", int64(a))
 	t.Run("error", func(t *testing.T) {
 		for _, tc := range []struct {
 			n      *asm_arm64.NodeImpl
@@ -590,49 +589,58 @@ func TestAssemblerImpl_EncodeConstToRegister(t *testing.T) {
 		}
 	})
 
-	consts32bits := []int64{
-		// 1) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3035-L3052
-		// 0x1,
-		// 0xfff,
-		// 0xfff << 12,
-		// 123 << 12,
-
-		// 2) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
-		// (1<<15 + 1),
-		// (1<<15 + 1) << 16,
-		// (1<<15 + 1) << 32,
-
-		// 3) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
-		// 0x0000_ffff_ffff_ffff,
-		// -281470681743361, /* = 0xffff_0000_ffff_ffff */
-
-		// 4) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L6719-L6733
-		// math.MinInt32 + 1,
-		// -281474976645121,
-
-		// 5) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3901-L3914
-		1<<20 + 1,
-		1<<20 - 1,
-		1<<23 | 0b01,
-
-		// 6) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3215-L3256
-		// movz x27, #0x1
-		// movk x27, #0x4000, lsl #16
-		// add  x30, x30, x27
-		// 1<<30+1,
-		//
-
-	}
 	for _, tc := range []struct {
 		inst   asm.Instruction
 		consts []int64
 	}{
-		{inst: asm_arm64.ADD, consts: consts32bits},
+		{
+			inst: asm_arm64.ADD,
+			consts: []int64{
+				// 1) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3035-L3052
+				0x1,
+				0xfff,
+				0xfff << 12,
+				123 << 12,
+
+				// 2) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
+				(1<<15 + 1),
+				(1<<15 + 1) << 16,
+				(1<<15 + 1) << 32,
+
+				// 3) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
+				0x0000_ffff_ffff_ffff,
+				-281470681743361, /* = 0xffff_0000_ffff_ffff */
+
+				// 4) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L6719-L6733
+				math.MinInt32 + 1,
+				-281474976645121, /* = 0xffff_0000_0000_ffff */
+
+				// 5) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3901-L3914
+				1<<20 + 1,
+				1<<20 - 1,
+				1<<23 | 0b01,
+
+				// 6) https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L3215-L3256
+				// TODO:
+				// movz x27, #0x1‰
+				// movk x27, #0x4000, lsl #16
+				// add  x30, x30, x27
+				// 1<<30 + 1,
+			},
+		},
+		{
+			inst: asm_arm64.MOVW,
+			consts: []int64{
+				0, 1, -1, 2, 3, 10, -10, 123, -123,
+				math.MaxInt16, math.MaxInt32, math.MaxUint32, 0b01000000_00000010, 0xffff_0000, 0xffff_0001, 0xf00_000f,
+				(1<<15 + 1) << 16, 0b1_00000000_00000010,
+			},
+		},
 	} {
 		tc := tc
 		t.Run(asm_arm64.InstructionName(tc.inst), func(t *testing.T) {
 			for _, r := range []asm.Register{
-				// asm_arm64.REG_R0, asm_arm64.REG_R10,
+				asm_arm64.REG_R0, asm_arm64.REG_R10,
 				asm_arm64.REG_R30,
 			} {
 				r := r

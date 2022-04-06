@@ -1489,7 +1489,6 @@ func log2(x uint64) uint32 {
 // encodeConstToRegister:  ADD IMMEDIATE, REG_INT
 // encodeConstToRegister:  LSR IMMEDIATE, REG_INT
 // encodeConstToRegister:  MOVD IMMEDIATE, REG_INT
-// encodeConstToRegister:  MOVW IMMEDIATE, REG_INT
 // encodeConstToRegister:  SUB IMMEDIATE, REG_INT
 // encodeConstToRegister:  SUBS IMMEDIATE, REG_INT
 func (a *AssemblerImpl) EncodeConstToRegister(n *NodeImpl) (err error) {
@@ -1545,13 +1544,7 @@ func (a *AssemblerImpl) EncodeConstToRegister(n *NodeImpl) (err error) {
 			tmpRegBits := registerBits(a.temporaryRegister)
 
 			// MOVZ $c, tmpReg with shifting.
-			c = c >> (16 * t)
-			a.Buf.Write([]byte{
-				(byte(c) << 5) | tmpRegBits,
-				byte(c >> 3),
-				1<<7 | (byte(t) << 5) | byte(c>>11),
-				0b110_10010,
-			})
+			a.load16bitAlignedConst(c>>(16*t), byte(t), tmpRegBits, false, true)
 
 			// ADD tmpReg, dstReg
 			a.Buf.Write([]byte{
@@ -1567,13 +1560,7 @@ func (a *AssemblerImpl) EncodeConstToRegister(n *NodeImpl) (err error) {
 			tmpRegBits := registerBits(a.temporaryRegister)
 
 			// MOVN $c, tmpReg with shifting.
-			c = (^c >> (16 * t))
-			a.Buf.Write([]byte{
-				(byte(c) << 5) | tmpRegBits,
-				byte(c >> 3),
-				1<<7 | (byte(t) << 5) | byte(c>>11),
-				0b100_10010,
-			})
+			a.load16bitAlignedConst((^c >> (16 * t)), byte(t), tmpRegBits, true, true)
 
 			// ADD tmpReg, dstReg
 			a.Buf.Write([]byte{
@@ -1590,15 +1577,8 @@ func (a *AssemblerImpl) EncodeConstToRegister(n *NodeImpl) (err error) {
 			// we load it via ORR into temp register.
 			// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L6719-L6733
 			tmpRegBits := registerBits(a.temporaryRegister)
-			encoded := bitconEncode(uc, 64)
-
 			// OOR $c, tmpReg
-			a.Buf.Write([]byte{
-				(zeroRegisterBits << 5) | tmpRegBits,
-				byte(encoded>>8) | (zeroRegisterBits >> 3),
-				byte(encoded >> 16),
-				0b101_10010,
-			})
+			a.loadBitcon(uc, tmpRegBits, true, 64)
 
 			// ADD tmpReg, dstReg
 			a.Buf.Write([]byte{
@@ -1636,6 +1616,52 @@ func (a *AssemblerImpl) EncodeConstToRegister(n *NodeImpl) (err error) {
 
 	case LSR:
 	case MOVW:
+		if c == 0 {
+			a.Buf.Write([]byte{
+				(zeroRegisterBits << 5) | dstRegBits,
+				(zeroRegisterBits >> 3),
+				0b000_00000 | zeroRegisterBits,
+				0b0_01_01010,
+			})
+			return
+		}
+
+		c32 := uint32(c)
+		uc := uint64(c32)
+		if (c >= 0 && (c <= 0xfff || (c&0xfff) == 0 && (uint64(c>>12) <= 0xfff))) && // This condition is not necessary for MOVW, but in order to line with golang-asm we have here.
+			isbitcon(uc) {
+			a.loadBitcon(uc, dstRegBits, false, 32)
+			return
+		} else if t := const16bitAligned(c); t >= 0 {
+			// If the const can fit within 16-bit alignment, for example, 0xffff, 0xffff_0000 or 0xffff_0000_0000_0000
+			// We could load it into temporary with movk.
+			// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
+			a.load16bitAlignedConst(c>>(16*t), byte(t), dstRegBits, false, false)
+			return
+		} else if t := const16bitAligned(int64(^c32)); t >= 0 {
+			// Also if the reverse of the const can fit within 16-bit range, do the same ^^.
+			// https://github.com/twitchyliquid64/golang-asm/blob/v0.15.1/obj/arm64/asm7.go#L4081-L4109
+			a.load16bitAlignedConst((int64(^c32) >> (16 * t)), byte(t), dstRegBits, true, false)
+			return
+		} else {
+			// Othewise we use MOVZ and MOVN
+			c16 := uint16(c32)
+			a.Buf.Write([]byte{
+				(byte(c16) << 5) | dstRegBits,
+				byte(c16 >> 3),
+				1<<7 | byte(c16>>11),
+				0b0_10_10010,
+			})
+			c16 = uint16(c32 >> 16)
+			if c32 != 0 {
+				a.Buf.Write([]byte{
+					(byte(c16) << 5) | dstRegBits,
+					byte(c16 >> 3),
+					1<<7 | 0b0_01_00000 /* shift by 12 */ | byte(c16>>11),
+					0b0_11_10010,
+				})
+			}
+		}
 	case MOVD:
 	case SUB:
 	case SUBS:
@@ -1643,6 +1669,41 @@ func (a *AssemblerImpl) EncodeConstToRegister(n *NodeImpl) (err error) {
 		return errorEncodingUnsupported(n)
 	}
 	return
+}
+
+func (a *AssemblerImpl) load16bitAlignedConst(c int64, shiftNum byte, regBits byte, reverse bool, dst64bit bool) {
+	var lastByte byte
+	if reverse {
+		// MOVN
+		lastByte = 0b0_00_10010
+	} else {
+		// MOVZ
+		lastByte = 0b0_10_10010
+	}
+	if dst64bit {
+		lastByte |= 0b1 << 7
+	}
+	a.Buf.Write([]byte{
+		(byte(c) << 5) | regBits,
+		byte(c >> 3),
+		1<<7 | (byte(shiftNum) << 5) | byte(c>>11),
+		lastByte,
+	})
+}
+
+func (a *AssemblerImpl) loadBitcon(uc uint64, regBits byte, dst64bit bool, mode int) {
+	encoded := bitconEncode(uc, mode)
+	// OOR $c, tmpReg
+	var sf byte
+	if dst64bit {
+		sf = 0b1
+	}
+	a.Buf.Write([]byte{
+		(zeroRegisterBits << 5) | regBits,
+		byte(encoded>>8) | (zeroRegisterBits >> 3),
+		byte(encoded >> 16),
+		sf<<7 | 0b0_01_10010,
+	})
 }
 
 // encodeSIMDByteToSIMDByte:  VCNT REG_FLOAT.B8, REG_FLOAT.B8
